@@ -1,0 +1,13 @@
+
+.vjs-icon-hd, .video-js .vjs-video-button .vjs-icon-placeholder {
+  font-family: VideoJS;
+  font-weight: normal;
+  font-style: normal;
+}
+.vjs-icon-hd:before, .video-js .vjs-video-button .vjs-icon-placeholder:before {
+  content: "\f10d";
+}
+
+.vjs-menu li {
+  text-transform: none;
+}

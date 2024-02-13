@@ -1,0 +1,121 @@
+{
+  "name": "@ceeblue/videojs-plugins",
+  "version": "0.0.0",
+  "description": "Videojs set of plugins for playing streams from the Ceeblue cloud",
+  "keywords": [
+    "webrtc",
+    "whip",
+    "whep",
+    "real-time",
+    "streaming",
+    "video",
+    "live",
+    "cdn",
+    "hls",
+    "dash",
+    "videojs",
+    "videojs-plugin"
+  ],
+  "homepage": "https://github.com/ceebluetv/videojs-plugins#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ceebluetv/videojs-plugins.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ceebluetv/videojs-plugins/issues"
+  },
+  "main": "dist/videojs-plugins.cjs.js",
+  "module": "dist/videojs-plugins.es.js",
+  "browser": "dist/videojs-plugins.js",
+  "generator-videojs-plugin": {
+    "version": "8.0.0"
+  },
+  "scripts": {
+    "build": "npm-run-all -s clean -p build:*",
+    "build-prod": "cross-env-shell NO_TEST_BUNDLE=1 'npm run build'",
+    "build-test": "cross-env-shell TEST_BUNDLE_ONLY=1 'npm run build'",
+    "build:css": "postcss -o dist/videojs-plugins.css --config scripts/postcss.config.js src/plugin.scss",
+    "build:js": "rollup -c scripts/rollup.config.js",
+    "clean": "shx rm -rf ./dist ./test/dist ./cjs ./es && shx mkdir -p ./dist ./test/dist ./cjs ./es",
+    "docs": "npm-run-all docs:*",
+    "docs:api": "jsdoc src -r -d docs/api",
+    "docs:toc": "doctoc --notitle README.md",
+    "lint": "npx eslint src/*/**.js scripts/*.js",
+    "server": "karma start scripts/karma.conf.js --singleRun=false --auto-watch",
+    "start": "npm-run-all -p server watch",
+    "test": "npm-run-all lint build-test && karma start scripts/karma.conf.js",
+    "prepare": "is-ci || husky install",
+    "prepublishOnly": "npm-run-all build-prod",
+    "posttest": "shx cat test/dist/coverage/text.txt",
+    "update-changelog": "conventional-changelog -p videojs -i CHANGELOG.md -s",
+    "version": "is-prerelease || npm run update-changelog && git add CHANGELOG.md",
+    "watch": "npm-run-all -p watch:*",
+    "watch:css": "npm run build:css -- -w",
+    "watch:js": "npm run build:js -- -w"
+  },
+  "author": "Ceeblue B.V.",
+  "license": "AGPL-3.0-or-later",
+  "vjsstandard": {
+    "ignore": [
+      "es",
+      "cjs",
+      "dist",
+      "docs",
+      "test/dist"
+    ]
+  },
+  "files": [
+    "cjs/",
+    "dist/",
+    "docs/",
+    "es/"
+  ],
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.js": "vjsstandard --fix",
+    "README.md": "doctoc --notitle"
+  },
+  "dependencies": {
+    "@ceeblue/webrtc-client": "^1.1.0",
+    "eslint": "^8.55.0",
+    "eslint-config-videojs": "^6.0.0",
+    "eslint-plugin-jsdoc": "^46.9.0",
+    "global": "^4.4.0",
+    "video.js": "8.7.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-replace": "^5.0.5",
+    "@videojs/generator-helpers": "^3.2.0",
+    "@semantic-release/exec": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "commitizen": "^4.3.0",
+    "cz-conventional-changelog": "^3.3.0",
+    "husky": "~8.0.3",
+    "is-ci": "~3.0.0",
+    "jsdoc": "~3.6.6",
+    "karma": "^6.3.2",
+    "lint-staged": "~15.2.0",
+    "postcss": "^8.2.13",
+    "postcss-cli": "^8.3.1",
+    "rollup": "^2.26.11",
+    "semantic-release": "~21.0.0",
+    "sinon": "^11.1.1",
+    "videojs-generate-karma-config": "~8.0.0",
+    "videojs-generate-postcss-config": "~3.0.0",
+    "videojs-generate-rollup-config": "^7.0.2",
+    "videojs-generator-verify": "^4.0.1",
+    "videojs-standard": "^9.0.1"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}

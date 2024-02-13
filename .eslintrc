@@ -1,0 +1,13 @@
+{
+    "env": {
+        "browser": true,
+        "es2020": true
+    },
+    "rules": {
+        "jsdoc/newline-after-description": "off"
+    },
+    "parserOptions": {
+        "ecmaVersion": 2020
+    },
+    "extends": "videojs"
+}
