@@ -1,5 +1,7 @@
 # videojs-plugins
 
+[![npm](https://img.shields.io/npm/v/%40ceeblue%2Fvideojs-plugins)](https://npmjs.org/package/@ceeblue/videojs-plugins)
+
 Set of [Videojs] plugins for playing streams from the [Ceeblue] cloud.
 
 This plugin contains :
