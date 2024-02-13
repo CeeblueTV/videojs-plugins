@@ -48,7 +48,7 @@ Include [@ceeblue/videojs-plugins][npm-url] in your HTML code as usual with the 
 Example :
 
 ```html
-<script src="https://vjs.zencdn.net/8.6.1/video.min.js"></script>
+<script src="https://vjs.zencdn.net/8.7.0/video.min.js"></script>
 <script src="./dist/videojs-plugins.js"></script>
 ```
 
