@@ -1,6 +1,6 @@
 {
   "name": "@ceeblue/videojs-plugins",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Videojs set of plugins for playing streams from the Ceeblue cloud",
   "keywords": [
     "webrtc",
