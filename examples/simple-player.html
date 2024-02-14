@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>WebRTC Playback demo</title>
+  <link href="https://vjs.zencdn.net/8.7.0/video-js.css" rel="stylesheet">
+  <link href="../dist/videojs-plugins.css" rel="stylesheet">
+</head>
+<body>
+<script src="https://vjs.zencdn.net/8.7.0/video.min.js"></script>
+<script src="../dist/videojs-plugins.js"></script>
+
+<div id="video_container">
+    <video id=video-player width=960 height=540 class="video-js vjs-default-skin" controls autoplay muted></video>
+</div>
+<script type="module">
+  import { Player } from "./js/Player.js";
+
+  // Replace the source url with host and stream name from query string
+  var url = new URL(window.location.href);
+  var connectParams = {
+    host: url.searchParams.get("host"),
+    streamName: url.searchParams.get("stream"),
+    accessToken: url.searchParams.get("token")
+  };
+  if (!connectParams.host || !connectParams.streamName) {
+    throw new Error("host and stream parameters are required");
+  }
+  
+  // Initialize the video player
+  var player = new Player("video-player");
+  player.start(connectParams, ['webrtc', 'llhls', 'webrtc']);
+</script>
+</body>
+</html>

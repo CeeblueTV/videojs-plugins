@@ -178,7 +178,8 @@ If you are not using the [SourceController](#sourcecontroller), the QualityButto
 
 ## SourceController
 
-The [SourceController](./src/controllers/SourceController.js) allows to configure fallback sources when the current source is not working (for example if WebRTC is not supported in the browser). It is also suited to switch smoothly from one source to the other.
+The [SourceController](./src/controllers/SourceController.js) allows to configure fallback sources when the current source is not working
+(for example if WebRTC is not supported in the browser). It is also suited to switch smoothly from one source to the other.
 
 The constructor of `SourceController` only takes one argument : the videojs player.
 
@@ -188,6 +189,7 @@ To start the `SourceController` call the `start()` function with the following a
 - The list of sources in order of priority. A source can be a string from the `SourceType` list or a [Source Object] in order to set custom options.
 
 > See `SourceType` object in [SourceController.js](./src/controllers/SourceController.js) which defines the list of possible sources,
+> The [Source Object] must contain the `src` field and the `type` field set to the MIME-type of the source (empty for WebRTC, see [WebRTCSource](#webrtcsource)).
 
 **Example:**
 
@@ -204,6 +206,7 @@ To start the `SourceController` call the `start()` function with the following a
     {
       host: '<ceeblue-host>',
       streamName: '<streamId>'
+      query: 'id=<accessToken>'
     }, 
     [{
         src: 'wss://<ceeblue-host>/<streamId>',
@@ -228,7 +231,18 @@ const player = videojs(videoEl, { qualityButton: false});
 You can find examples of players in the [examples/](./examples/) directory :
 
 - **player.html** : The most advanced example which use WebRTC, the [SourceController](#sourcecontroller), and the [QualityButton](#qualitybutton), with a complete UI for setting parameters and showing timed metadatas.
-- **simple-player.html** : A simple example with a WebRTC source configured with the HTML `<source>` tag.
+- **simple-player.html** : A simple example using [SourceController](#sourcecontroller) with default parameters.
+- **webrtc-player.html** : A simple example with a WebRTC source configured with the HTML `<source>` tag.
+
+In all examples you can find the HTML code to include the library and the player, and the JavaScript code to configure the player.
+You can set query parameters in the URL to test the different options. For example :
+
+> Replace `<ceeblue-host>` by your endpoint hostname, `<streamId>` by your stream name and replace `<accessToken>` by the
+viewer access token given by Ceeblue Cloud API (optional, only if the stream is private).
+
+```html
+https://localhost:8080/examples/player.html?host=<ceeblue-host>&stream=<streamId>&token=<accessToken>
+```
 
 ## Documentation
 
