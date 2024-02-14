@@ -211,10 +211,11 @@ export class SourceController extends EventEmitter {
     const newSource = this._sources[this._sourceIndex++];
 
     videojs.log('Trying source', newSource);
-    this._player.on('error', (e) => {
-      const error = this._player.error();
-
-      videojs.log('Player error : ', error && error.message);
+    this._player.on('error', (_, error) => {
+      if (!error) {
+        error = this._player.error() && this._player.error().message;
+      }
+      videojs.log('Player error : ', error);
       this._stopSource();
     });
     this._player.on('loadedmetadata', () => {

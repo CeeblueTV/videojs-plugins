@@ -26,7 +26,7 @@ export class WebRTCSource extends Component {
 
     // Check RTCPPeerConnection support
     if (!window.RTCPeerConnection) {
-      this.player.trigger('ended');
+      this.player.error({code: 4, message: 'WebRTC is not supported by this browser'});
       return;
     }
 
@@ -60,7 +60,7 @@ export class WebRTCSource extends Component {
     }, this._abortController);
     this.webRTCPlayer.on('stop', () => {
       videojs.log('stop playing');
-      this.player.trigger('ended');
+      this.player.error({code: 4, message: 'The video playback was aborted'});
     }, this._abortController);
     this.webRTCPlayer.on('playing', playing => {
       // videojs.log('onPlaying', playing);
@@ -69,13 +69,9 @@ export class WebRTCSource extends Component {
       videojs.log('onMetadata', metadata);
       this._tracksController.update(metadata);
     }, this._abortController);
-    this.webRTCPlayer.on('error', error => {
-      this.player.trigger('error', error);
-      if (!this.webRTCPlayer) {
-        return;
-      }
-      this.player.trigger('webrtc-error', { error });
-    }, this._abortController);
+    this.webRTCPlayer.onError = error => {
+      videojs.log.error(error);
+    };
     this.webRTCPlayer.on('log', log => {
       videojs.log('onLog', log);
     }, this._abortController);
