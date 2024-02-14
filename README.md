@@ -20,7 +20,7 @@ This plugin contains :
   - [Parameters](#parameters)
     - [**src**](#src)
     - [**type**](#type)
-    - [**iceservers**](#iceservers)
+    - [**iceserver**](#iceserver)
     - [**audiobutton**](#audiobutton)
     - [**data**](#data)
   - [Source Object](#source-object)
@@ -86,11 +86,13 @@ The following options can be set in the query:
 
 **It is important for the MIME-type to be empty to use the WebRTC source.**
 
-#### **iceservers**
+#### **iceserver**
 
-Ice-servers (STUN, TURN) structure in JSON string format to establish a WebRTC connection.
+[Ice-server](https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/RTCPeerConnection#iceservers) structure in JSON string format with TURN URL used to establish the WebRTC connection, mainly for TCP fallback.
 
-**Note:** Do not enclose the object in an array.
+> Do not enclose the object in an array.
+> If you have multiple TURN servers, you can add them in the `urls` array.
+> **If not set, the plugin will use the default TURN server of the Ceeblue Cloud.**
 
 **Example:**
 
@@ -130,7 +132,7 @@ Call the `player.src()` method with a WebRTC URL.
   const player = videojs('video-tag');
   player.src({
     src: 'wss://<ceeblue-host>/<streamId>',
-    iceservers: '{
+    iceserver: '{
       "urls": ["turn:<ceeblue-host>?transport=tcp", "turn:<ceeblue-host>:3478"],
       "username": "csc_demo",
       "credential": "UtrAFClFFO"
@@ -157,7 +159,7 @@ The WebRTC source can be set directly in the HTML Source tag.
 <div id="video_container">
     <video id=video-player width=960 height=540 class="video-js vjs-default-skin" controls>
         <source src="wss://<ceeblue-host>/webrtc/<streamId>" 
-            iceServers='{"urls": ["turn:<ceeblue-host>?transport=tcp", "turn:<ceeblue-host>:3478"], "username": "csc_demo", "credential": "UtrAFClFFO"}'>
+            iceserver='{"urls": ["turn:<ceeblue-host>?transport=tcp", "turn:<ceeblue-host>:3478"], "username": "csc_demo", "credential": "UtrAFClFFO"}'>
     </video>
 </div>
 <script>
@@ -208,13 +210,19 @@ To start the `SourceController` call the `start()` function with the following a
       streamName: '<streamId>'
       query: 'id=<accessToken>'
     }, 
-    [{
+    [
+      {
+        // A WebRTC source with custom options
         src: 'wss://<ceeblue-host>/<streamId>',
-        iceservers: '{"urls": ["turn:<ceeblue-host>?transport=tcp", "turn:<ceeblue-host>:3478"], "username": "csc_demo", "credential": "UtrAFClFFO"}',
-     },
+        iceserver: '{"urls": ["turn:<ceeblue-host>?transport=tcp", "turn:<ceeblue-host>:3478"], "username": "csc_demo", "credential": "UtrAFClFFO"}',
+      },
       'llhls',
-      'dash', 
-      'hls'
+      'dash',
+      {
+        // A fallback source with a custom type
+        src: 'http://vjs.zencdn.net/v/oceans.mp4',
+        type: 'video/mp4'
+      }
     ]);
 ```
 

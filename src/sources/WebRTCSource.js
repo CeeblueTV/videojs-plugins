@@ -13,7 +13,7 @@ export class WebRTCSource extends Component {
    * Create a WebRTC source handler instance.
    *
    * @param  {Object} source Source object that is given in the DOM, includes the stream URL
-   *  and the source options : {iceservers: string|Object, audiobutton: true|false, data: true|false}
+   *  and the source options : {iceserver: string|Object, audiobutton: true|false, data: true|false}
    * @param  {Object} tech The videojs tech object
    * @param  {Object} options The videojs options object
    */
@@ -30,10 +30,10 @@ export class WebRTCSource extends Component {
       return;
     }
 
-    // Parse iceServers
+    // Parse iceServer
     try {
-      if (typeof source.iceservers === 'string') {
-        this.source.iceservers = JSON.parse(source.iceservers);
+      if (typeof source.iceserver === 'string') {
+        this.source.iceserver = JSON.parse(source.iceserver);
       }
     } catch (e) {
       videojs.log('Malformated JSON : ', e && e.message);
@@ -75,7 +75,7 @@ export class WebRTCSource extends Component {
     this.webRTCPlayer.on('log', log => {
       videojs.log('onLog', log);
     }, this._abortController);
-    this.webRTCPlayer.start({host: url.host, streamName, iceServer: this.source.iceservers, query: Util.objectFrom(url.searchParams)});
+    this.webRTCPlayer.start({host: url.host, streamName, iceServer: this.source.iceserver, query: Util.objectFrom(url.searchParams)});
 
     // Create the tracks controller
     this._tracksController = new WebRTCTracksController(this);

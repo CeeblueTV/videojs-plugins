@@ -265,7 +265,7 @@
 							source = {
 								src: Connect.buildURL(ConnectType.WEBRTC, connectParams, protocol).toString(),
 								// Ceeblue specific options
-								iceservers: {
+								iceserver: {
 									urls: ['turn:' + this.host.domain + ':3478?transport=tcp', 'turn:' + this.host.domain + ':3478'], 
 									username: 'csc_demo', 
 									credential: 'UtrAFClFFO'

@@ -128,7 +128,7 @@ export class SourceController extends EventEmitter {
           source.sourceType = SourceType.DASH;
           break;
         default:
-          videojs.log.warning('Unknown source type ' + source.type + ' using the MIME type instead');
+          videojs.log.warn('Unknown source type ' + source.type + ' using the MIME type instead');
           source.sourceType = source.type;
           break;
         }
@@ -165,12 +165,15 @@ export class SourceController extends EventEmitter {
       const protocol = connectParams.host.startsWith('https://') ? 'https' : 'wss';
 
       result.src = Connect.buildURL(ConnectType.WEBRTC, connectParams, protocol).toString();
-      // Use the default ICE servers structure
-      result.iceServers = {
-        urls: ['turn:' + domain + ':3478?transport=tcp', 'turn:' + domain + ':3478'],
-        username: 'csc_demo',
-        credential: 'UtrAFClFFO'
-      };
+      result.iceserver = connectParams.iceServer;
+      if (!result.iceserver) {
+        // Use the default ICE servers structure
+        result.iceserver = {
+          urls: ['turn:' + domain + ':3478?transport=tcp', 'turn:' + domain + ':3478'],
+          username: 'csc_demo',
+          credential: 'UtrAFClFFO'
+        };
+      }
       break;
     default:
       videojs.log.error('Unknown source type ' + source);
