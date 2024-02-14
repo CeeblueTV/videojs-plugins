@@ -21,13 +21,19 @@
   var url = new URL(window.location.href);
   var host = url.searchParams.get("host");
   var stream = url.searchParams.get("stream");
+  var accessToken = url.searchParams.get("token");
   if (host && stream) {
     var source = "wss://" + host + "/" + stream;
-    document.getElementById('video-player').getElementsByTagName('source')[0].src = source;
+    if (accessToken) {
+      source += "?id=" + accessToken;
+    }
+    document.getElementById("video-player").getElementsByTagName("source")[0].src = source;
+  } else {
+    throw new Error("host and stream parameters are required");
   }
   
   // Initialize the video player
-  var player = videojs('video-player');
+  var player = videojs("video-player");
   player.qualityButton();
 </script>
 </body>
