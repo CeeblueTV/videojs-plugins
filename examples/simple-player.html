@@ -20,7 +20,7 @@
   var connectParams = {
     host: url.searchParams.get("host"),
     streamName: url.searchParams.get("stream"),
-    accessToken: url.searchParams.get("token")
+    accessToken: url.searchParams.get("accessToken")
   };
   if (!connectParams.host || !connectParams.streamName) {
     throw new Error("host and stream parameters are required");

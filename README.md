@@ -248,7 +248,7 @@ For example:
 viewer access token provided by the Ceeblue Cloud API (optional, only if the stream is private).
 
 ```html
-https://localhost:8080/examples/player.html?host=<host>&stream=<streamName>&token=<accessToken>
+https://localhost:8080/examples/player.html?host=<host>&stream=<streamName>&accessToken=<accessToken>
 ```
 
 ## Documentation
