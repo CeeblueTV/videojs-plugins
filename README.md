@@ -54,6 +54,8 @@ Example:
 
 ## WebRTCSource
 
+> To avoid potential issues with backward compatibility or problems on iOS when using  `navigator.mediaDevices.getUserMedia`, we recommend including the [WebRTC adapter](https://github.com/webrtcHacks/adapter) in the final project. This often mitigates common compatibility issues on certain older devices.
+
 ### Parameters
 
 #### **src**
