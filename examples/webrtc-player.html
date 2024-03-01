@@ -22,7 +22,7 @@
   var url = new URL(window.location.href);
   var host = url.searchParams.get("host");
   var stream = url.searchParams.get("stream");
-  var accessToken = url.searchParams.get("accessToken");
+  var accessToken = url.searchParams.get("accesstoken") || url.searchParams.get("token");
   if (host && stream) {
     var source = "wss://" + host + "/" + stream;
     if (accessToken) {
