@@ -69,7 +69,7 @@ export class WebRTCTracksController {
     }
 
     if (this._webRTCPlayer.controller) {
-      // In auto mode the video track chan change without user interaction so we need to check regularly the current video track
+      // In auto mode the video track can change without user interaction so we need to check regularly the current video track
       this._webRTCPlayer.onPlaying = () => {
         if (this._videoTrack === this._webRTCPlayer.videoTrack) {
           // no change

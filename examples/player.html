@@ -131,9 +131,8 @@
         	Util,
 			NetAddress,
 			Connect,
-			ConnectType
-		} = WebRTCSourceHandler.webrtcClient;
-		console.log('webrtc-client version:', Util.VERSION);
+		} = WebRTCSourceHandler.webrtcClient.utils;
+		console.log('webrtc-client version:', WebRTCSourceHandler.webrtcClient.VERSION);
 	
 		const PlayState = {
 			PLAYING: 'PLAYING',
@@ -158,6 +157,7 @@
 					audiobutton: true,
 					videobutton: true,
 					retryCount: 0,
+					auto: true,
 
 					connectorTypes: ['WebSocket (WS)', 'HTTP (WHEP)'],
 					connectorType: 'WebSocket (WS)',
@@ -174,17 +174,18 @@
 				const host = options.host;
 				this.host = new NetAddress(host || location.host, 443);
 				this.streamName = options.stream;
-				this.accessToken = options.accessToken;
+				this.accessToken = options.accesstoken || options.token;
 
 				this.audioTrack = options.audio;
 				this.videoTrack = options.video;
 				this.audiobutton = options.audiobutton;
 				this.videobutton = options.videobutton;
 				this.retryCount = options.retryCount;
+				this.auto = options.auto !== false;
 				this.connectorType = host && host.toLowerCase().startsWith('http')? this.connectorTypes[1] : this.connectorTypes[0];
 			},
 			methods: {
-				startPlayback() {
+				startPlayback(selectedSource) {
 					this.playState = PlayState.STARTING;
 
 					// filter query params
@@ -206,10 +207,40 @@
 							},
 							// Ceeblue specific options
 							qualityButton: this.videobutton,
-							retryCount: this.retryCount
+							retryCount: this.retryCount,
+							auto: this.auto
+						}
+
+						// Build the sources list with custom options for WebRTC
+						const protocol = this.connectorType === this.connectorTypes[1]? 'https' : 'wss';
+						const connectParams = {
+							endPoint: protocol + '://' + this.host.toString(),
+							streamName:this.streamName,
+							accessToken:this.accessToken,
+							query
+						};
+						const sources = [];
+						for (let i = 0; i < this.sources.length; i++) {
+							let source = this.sources[i];
+							if (source == SourceType.WEBRTC) {
+								// This is an example of custom Source Object to pass options to the WebRTC source handler
+								// You can also customize every source type in the same way
+								source = {
+									src: Connect.buildURL(Connect.Type.WEBRTC, connectParams, protocol).toString(),
+									// Ceeblue specific options
+									iceserver: {
+										urls: ['turn:' + this.host.domain + ':3478?transport=tcp', 'turn:' + this.host.domain + ':3478'], 
+										username: 'csc_demo', 
+										credential: 'UtrAFClFFO'
+									},
+									audiobutton: this.audiobutton,
+									data: true
+								};
+							}
+							sources.push(source);
 						}
 						
-						player = new Player(this.$refs.videoPlayer, playerOptions);
+						player = new Player(this.$refs.videoPlayer, connectParams, sources, playerOptions);
 						player.on('sourcechanged', (source) => {
 							console.log('sourcechanged', source);
 							this.dataMessages = '';
@@ -247,49 +278,25 @@
 							});
 						});
 					}
-					// Ceeblue specific options
-					const protocol = this.connectorType === this.connectorTypes[1]? 'https' : 'wss';
-					const connectParams = {
-						host: protocol + '://' + this.host.toString(),
-						streamName:this.streamName,
-						accessToken:this.accessToken,
-						query
-					};
-					// Build the sources list with custom options for WebRTC
-					const sources = [];
-					for (let i = 0; i < this.sources.length; i++) {
-						let source = this.sources[i];
-						if (source == SourceType.WEBRTC) {
-							// This is an example of custom Source Object to pass options to the WebRTC source handler
-							// You can also customize every source type in the same way
-							source = {
-								src: Connect.buildURL(ConnectType.WEBRTC, connectParams, protocol).toString(),
-								// Ceeblue specific options
-								iceserver: {
-									urls: ['turn:' + this.host.domain + ':3478?transport=tcp', 'turn:' + this.host.domain + ':3478'], 
-									username: 'csc_demo', 
-									credential: 'UtrAFClFFO'
-								},
-								audiobutton: this.audiobutton,
-								data: true
-							};
-						}
-						sources.push(source);
-					}
-					player.start(connectParams, sources);
+					player.start(selectedSource);
 				},
 				stopPlayback() {
 					console.log('StopPlayback');
 					player.stop();
+					player = null;
 					this.dataMessages = '';
 					this.source = '';
 					this.quality = '';
 					this.playState = PlayState.STOPPED;
 				},
 				changeSource(e) {
-					if (!player || this.source == e.target.text)
+					if (this.source == e.target.text)
 						return;
+					if (!player) {
+						this.startPlayback(e.target.text);
+					} else {
 						player.source = e.target.text;
+					}
 				},
 				play() {
 					if(this.playState === PlayState.STOPPED) {

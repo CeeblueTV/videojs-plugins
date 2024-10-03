@@ -19,11 +19,11 @@
   // Replace the source url with host and stream name from query string
   var url = new URL(window.location.href);
   var connectParams = {
-    host: url.searchParams.get("host"),
+    endPoint: url.searchParams.get("host"),
     streamName: url.searchParams.get("stream"),
-    accessToken: url.searchParams.get("accessToken")
+    accessToken: url.searchParams.get("accesstoken") || url.searchParams.get("token")
   };
-  if (!connectParams.host || !connectParams.streamName) {
+  if (!connectParams.endPoint || !connectParams.streamName) {
     throw new Error("host and stream parameters are required");
   }
   
