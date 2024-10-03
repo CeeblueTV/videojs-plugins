@@ -1,7 +1,8 @@
 import videojs from 'video.js';
-import { Player, Util, WSController, HTTPConnector } from '@ceeblue/webrtc-client';
+import { Player, WSController, HTTPConnector, utils } from '@ceeblue/webrtc-client';
 import { WebRTCTracksController } from '../controllers/WebRTCTracksController';
 const Component = videojs.getComponent('Component');
+const Util = utils.Util;
 
 /**
  * An advanced Video.js plugin for playing WebRTC stream from Ceeblue cloud.
@@ -26,7 +27,7 @@ export class WebRTCSource extends Component {
 
     // Check RTCPPeerConnection support
     if (!window.RTCPeerConnection) {
-      this.player.error({code: 4, message: 'WebRTC is not supported by this browser'});
+      this.player.error({code: 0, message: 'WebRTC is not supported by this browser'});
       return;
     }
 
@@ -60,7 +61,7 @@ export class WebRTCSource extends Component {
     }, this._abortController);
     this.webRTCPlayer.on('stop', () => {
       videojs.log('stop playing');
-      this.player.error({code: 4, message: 'The video playback was aborted'});
+      this.player.error({code: 0, message: 'The video playback was aborted'});
     }, this._abortController);
     this.webRTCPlayer.on('playing', playing => {
       // videojs.log('onPlaying', playing);
@@ -71,11 +72,23 @@ export class WebRTCSource extends Component {
     }, this._abortController);
     this.webRTCPlayer.onError = error => {
       videojs.log.error(error);
+      if (error === 'Stream is offline') {
+        // Trigger onended event
+        this.player.trigger('ended');
+      }
     };
-    this.webRTCPlayer.on('log', log => {
-      videojs.log('onLog', log);
-    }, this._abortController);
-    this.webRTCPlayer.start({host: url.host, streamName, iceServer: this.source.iceserver, query: Util.objectFrom(url.searchParams)});
+    utils.log.on = (level, args) => {
+      switch (level) {
+      case 'error':
+      case 'warn':
+      case 'debug':
+        videojs.log[level]('WebRTC', ...args.splice(0));
+        break;
+      default:
+        videojs.log('WebRTC', ...args.splice(0));
+      }
+    };
+    this.webRTCPlayer.start({endPoint: url.host, streamName, iceServer: this.source.iceserver, query: Util.objectFrom(url.searchParams)});
 
     // Create the tracks controller
     this._tracksController = new WebRTCTracksController(this);

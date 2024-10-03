@@ -1,6 +1,16 @@
-
-import { EventEmitter, Connect, ConnectType, NetAddress } from '@ceeblue/webrtc-client';
+import { utils } from '@ceeblue/webrtc-client';
 import videojs from 'video.js';
+
+const {EventEmitter, Connect, NetAddress} = utils;
+
+// This is not exported because we access it with the plugin SourceController from :
+// SourceController.SourceType
+const SourceType = {
+  HLS: 'hls',
+  LLHLS: 'llhls',
+  DASH: 'dash',
+  WEBRTC: 'webrtc'
+};
 
 /**
  * Does the Videojs player source selection.
@@ -25,6 +35,15 @@ export class SourceController extends EventEmitter {
   }
 
   /**
+   * Set the auto mode
+   *
+   * @param {boolean} value true to automatically switch to the next source if the current one fails
+   */
+  set auto(value) {
+    this._auto = value;
+  }
+
+  /**
    * Set the current source dynamically
    *
    * @param {string} source the source type to play
@@ -45,48 +64,47 @@ export class SourceController extends EventEmitter {
    * The list of possible source types
    */
   static get SourceType() {
-    return {
-      HLS: 'hls',
-      LLHLS: 'llhls',
-      DASH: 'dash',
-      WEBRTC: 'webrtc'
-    };
+    return SourceType;
   }
 
   /**
    * SourceController constructor
    *
    * @param {VideojsPlayer} player Videojs player
+   * @param {Connect.Params} connectParams The Ceeblue connection parameters
+   * @param {Array<SourceType|SourceObject>} sources an array of sources to try in order
    */
-  constructor(player) {
+  constructor(player, connectParams, sources) {
     super();
     this._sourceIndex = 0;
     this._player = player;
-  }
+    this._auto = true;
+    this._sources = [];
 
-  /**
-   * Start the source controller, try the first source.
-   *
-   * @param {ConnectParams} connectParams The Ceeblue connection parameters
-   * @param {Array<SourceType|SourceObject>} sources an array of sources to try in order
-   */
-  start(connectParams, sources) {
-    if (this.started) {
-      videojs.log.error('SourceController already started');
-      return;
+    if (!sources || !sources.length) {
+      throw new Error('SourceController sources must not be empty');
     }
 
     // Initiate the list of Source Objects
-    this._sources = [];
     for (let source of sources) {
       source = SourceController.sourceToObject(source, connectParams);
       if (source) {
         this._sources.push(source);
       }
     }
+  }
 
-    this._params = {...connectParams};
-    this._tryNextSource();
+  /**
+   * Start the source controller, try the first source.
+   *
+   * @param {string?} sourceType the name of the selected source to start with, if null the first source is played
+   */
+  start(sourceType) {
+    if (this.started) {
+      videojs.log.error('SourceController already started');
+      return;
+    }
+    this.source = sourceType || this._sources[0].sourceType;
   }
 
   /**
@@ -104,11 +122,10 @@ export class SourceController extends EventEmitter {
    * Convert a source type to a videojs source object compatible with Ceeblue Cloud
    *
    * @param {SourceType|SourceObject} source SourceType or Source Object
-   * @param {ConnectParams} connectParams The Ceeblue connection parameters
+   * @param {Connect.Params} connectParams The Ceeblue connection parameters
    * @return {Object} a videojs source object for videojs or null if the parameters are invalid
    */
   static sourceToObject(source, connectParams) {
-    const SourceType = SourceController.SourceType;
 
     if (typeof source !== 'string') {
       // Already a source object, set the sourceType and check the src property
@@ -135,17 +152,17 @@ export class SourceController extends EventEmitter {
       }
       return source;
     }
-    if (connectParams.host === undefined || connectParams.streamName === undefined) {
-      videojs.log.error('ConnectParams must have host and streamName');
+    if (connectParams.endPoint === undefined || connectParams.streamName === undefined) {
+      videojs.log.error('ConnectParams must have endPoint and streamName');
       return null;
     }
 
-    connectParams.host = connectParams.host;
-    let host = new NetAddress(connectParams.host, 443);
+    connectParams.endPoint = connectParams.endPoint;
+    let host = new NetAddress(connectParams.endPoint);
     const domain = host.domain;
     const result = {sourceType: source};
 
-    host = domain + ':' + host.port;
+    host = domain + ((host.port) ? (':' + host.port) : '');
 
     // Construct the source object from the source type and the connection parameters
     switch (source) {
@@ -162,9 +179,9 @@ export class SourceController extends EventEmitter {
       result.type = 'application/dash+xml';
       break;
     case SourceType.WEBRTC:
-      const protocol = connectParams.host.startsWith('https://') ? 'https' : 'wss';
+      const protocol = connectParams.endPoint.startsWith('https://') ? 'https' : 'wss';
 
-      result.src = Connect.buildURL(ConnectType.WEBRTC, connectParams, protocol).toString();
+      result.src = Connect.buildURL(Connect.Type.WEBRTC, connectParams, protocol).toString();
       result.iceserver = connectParams.iceServer;
       if (!result.iceserver) {
         // Use the default ICE servers structure
@@ -243,7 +260,12 @@ export class SourceController extends EventEmitter {
     }
     this._stopSourceTimeout = setTimeout(() => {
       this._reset();
-      this._tryNextSource();
+      if (this._auto) {
+        this._tryNextSource();
+      } else {
+        this._sourceIndex = 0;
+        this.onSourceChanged(null);
+      }
       this._stopSourceTimeout = null;
     }, 0);
   }
