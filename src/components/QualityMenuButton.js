@@ -28,17 +28,8 @@ export class QualityMenuButton extends MenuButton {
    */
   createEl() {
     return videojs.dom.createEl('div', {
-      className: 'vjs-http-source-selector vjs-menu-button vjs-menu-button-popup vjs-control vjs-button'
+      className: 'vjs-http-source-selector vjs-menu-button vjs-menu-button-popup vjs-control vjs-button vjs-quality-button'
     });
-  }
-
-  /**
-   * Build the CSS class for this element.
-   *
-   * @return {string} The CSS class names to use for this button
-   */
-  buildCSSClass() {
-    return MenuButton.prototype.buildCSSClass.call(this) + (this.options_.buttonClass ? (' ' + this.options_.buttonClass) : ' vjs-icon-cog');
   }
 
   /**
