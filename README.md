@@ -54,8 +54,6 @@ Example:
 
 ## WebRTCSource
 
-> To avoid potential issues with backward compatibility or problems on iOS when using  `navigator.mediaDevices.getUserMedia`, we recommend including the [WebRTC adapter](https://github.com/webrtcHacks/adapter) in the final project. This often mitigates common compatibility issues on certain older devices.
-
 ### Parameters
 
 #### **src**
@@ -183,19 +181,20 @@ If you are not using the [SourceController](#sourcecontroller), the QualityButto
 The [SourceController](./src/controllers/SourceController.js) allows you to configure fallback sources if the current source is not working (for example, if WebRTC is not supported in the browser).
 It is also used for seamlessly switching from one source to the other.
 
-The constructor of `SourceController` only takes one argument, the videojs player.
+The constructor of `SourceController` takes three arguments :
 
-To start the `SourceController` call the `start()` function with the following arguments:
-
-- The `ConnectParams` structure containing the host, the stream name, the access token (optional), and the query parameters (optional)
+- The videojs player,
+- The `Connect.Params`, the ceeblue connection parameters (see [Connect class]),
 - The list of sources in order of priority. A source can be a string from the `SourceType` list or a [Source Object] in order to set custom options.
 
-> See the `SourceType` object in [SourceController.js](./src/controllers/SourceController.js) which defines the list of possible sources,
+To start the `SourceController` call the `start()` function with the `SourceType` to start with, or no argument to start from the first source.
+
+> The `SourceType` object in [SourceController.js](./src/controllers/SourceController.js) defines the list of possible sources,
 > The [Source object] must have the `src` field and the `type` field set to the MIME type of the source (empty for WebRTC, see [WebRTCSource](#webrtcsource)).
 
 **Example:**
 
-> Replace `<host>` by your endpoint hostname and `<streamName>` by your stream name.
+> Replace `<endPoint>` by your endPoint, `host` by the endPoint hostname and `<streamName>` by your stream name.
 
 ```javascript
   const sourceController = new SourceController(
@@ -206,7 +205,7 @@ To start the `SourceController` call the `start()` function with the following a
   });
   sourceController.start(
     {
-      host: '<host>',
+      endPoint: '<endPoint>',
       streamName: '<streamName>'
       query: 'id=<accessToken>'
     }, 
@@ -272,6 +271,7 @@ All contributions are welcome. Please see [our contribution guide](/CONTRIBUTING
 By contributing code to this project, you agree to license your contribution under the [GNU Affero General Public License](/LICENSE).
 
 [ceeblue]: https://ceeblue.net/
+[Connect class]: https://github.com/CeeblueTV/web-utils/blob/main/src/Connect.ts
 [github-sources]: https://github.com/CeeblueTV/videojs-plugins
 [npm-url]: https://www.npmjs.com/package/@ceeblue/videojs-plugins
 [Source Object]: https://www.w3schools.com/JSREF/dom_obj_source.asp
