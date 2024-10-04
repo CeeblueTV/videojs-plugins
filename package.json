@@ -88,6 +88,8 @@
     "video.js": "8.7.0"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
     "@rollup/plugin-replace": "^5.0.5",
     "@semantic-release/exec": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
@@ -110,10 +112,10 @@
     "videojs-generator-verify": "^4.0.1",
     "videojs-standard": "^9.1.0"
   },
-  "config": {
-    "commitizen": {
-      "path": "./node_modules/cz-conventional-changelog"
-    }
+  "commitlint": {
+      "extends": [
+          "@commitlint/config-conventional"
+      ]
   },
   "publishConfig": {
     "access": "public"
