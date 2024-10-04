@@ -1,6 +1,6 @@
 {
   "name": "@ceeblue/videojs-plugins",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Videojs set of plugins for playing streams from the Ceeblue cloud",
   "keywords": [
     "webrtc",
@@ -113,9 +113,9 @@
     "videojs-standard": "^9.1.0"
   },
   "commitlint": {
-      "extends": [
-          "@commitlint/config-conventional"
-      ]
+    "extends": [
+      "@commitlint/config-conventional"
+    ]
   },
   "publishConfig": {
     "access": "public"
