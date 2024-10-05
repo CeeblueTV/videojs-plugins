@@ -19,6 +19,7 @@ export class QualityMenuButton extends MenuButton {
    */
   constructor(player, options) {
     super(player, options);
+    this.controlText('Video quality');
   }
 
   /**
@@ -28,7 +29,7 @@ export class QualityMenuButton extends MenuButton {
    */
   createEl() {
     return videojs.dom.createEl('div', {
-      className: 'vjs-http-source-selector vjs-menu-button vjs-menu-button-popup vjs-control vjs-button vjs-quality-button'
+      className: 'vjs-menu-button vjs-menu-button-popup vjs-control vjs-quality-button'
     });
   }
 
@@ -150,7 +151,9 @@ export function setupQualityButton(player, options) {
 
   // Removes a possible previous button
   controlBar.removeChild(player.videoMenu);
+
   player.videoMenu = new QualityMenuButton(player, {
+    title: 'Quality',
     qualities: qualityLevels,
     buttonClass: 'vjs-video-button'
   });
