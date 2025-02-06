@@ -99,8 +99,8 @@ The following options can be set in the query:
 ```js
 {
   "urls": ["turn:<host>?transport=tcp", "turn:<host>:3478"],
-  "username": "csc_demo",
-  "credential": "UtrAFClFFO"
+  "username": "ceeblue",
+  "credential": "ceeblue"
 }
 ```
 
@@ -132,8 +132,8 @@ Call the `player.src()` method with a WebRTC URL.
     src: 'wss://<host>/<streamName>',
     iceserver: '{
       "urls": ["turn:<host>?transport=tcp", "turn:<host>:3478"],
-      "username": "csc_demo",
-      "credential": "UtrAFClFFO"
+      "username": "ceeblue",
+      "credential": "ceeblue"
     }',
     audiobutton: true,
     data: false
@@ -157,7 +157,7 @@ The WebRTC source can be set directly in the HTML Source tag.
 <div id="video_container">
     <video id=video-player width=960 height=540 class="video-js vjs-default-skin" controls>
         <source src="wss://<host>/webrtc/<streamName>" 
-            iceserver='{"urls": ["turn:<host>?transport=tcp", "turn:<host>:3478"], "username": "csc_demo", "credential": "UtrAFClFFO"}'>
+            iceserver='{"urls": ["turn:<host>?transport=tcp", "turn:<host>:3478"], "username": "ceeblue", "credential": "ceeblue"}'>
     </video>
 </div>
 <script>
@@ -213,7 +213,7 @@ To start the `SourceController` call the `start()` function with the `SourceType
       {
         // A WebRTC source with custom options
         src: 'wss://<host>/<streamName>',
-        iceserver: '{"urls": ["turn:<host>?transport=tcp", "turn:<host>:3478"], "username": "csc_demo", "credential": "UtrAFClFFO"}',
+        iceserver: '{"urls": ["turn:<host>?transport=tcp", "turn:<host>:3478"], "username": "ceeblue", "credential": "ceeblue"}',
       },
       'llhls',
       'dash',

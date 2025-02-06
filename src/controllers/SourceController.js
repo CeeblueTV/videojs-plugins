@@ -187,8 +187,8 @@ export class SourceController extends EventEmitter {
         // Use the default ICE servers structure
         result.iceserver = {
           urls: ['turn:' + domain + ':3478?transport=tcp', 'turn:' + domain + ':3478'],
-          username: 'csc_demo',
-          credential: 'UtrAFClFFO'
+          username: 'ceeblue',
+          credential: 'ceeblue'
         };
       }
       break;
