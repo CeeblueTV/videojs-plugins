@@ -1,3 +1,14 @@
+<a name="1.2.0"></a>
+# [1.2.0](https://github.com/ceebluetv/videojs-plugins/compare/v1.1.0...v1.2.0) (2025-02-06)
+
+### Features
+
+* **package.json:** update webrtc-client version ([939ba38](https://github.com/ceebluetv/videojs-plugins/commit/939ba38))
+
+### Chores
+
+* update TURN default ceeblue credentials ([b68fca8](https://github.com/ceebluetv/videojs-plugins/commit/b68fca8))
+
 <a name="1.1.0"></a>
 # [1.1.0](https://github.com/ceebluetv/videojs-plugins/compare/v1.0.1...v1.1.0) (2024-10-07)
 
