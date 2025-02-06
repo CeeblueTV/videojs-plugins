@@ -1,7 +1,7 @@
 {
   "name": "@ceeblue/videojs-plugins",
   "version": "1.1.0",
-  "description": "Videojs set of plugins for playing streams from the Ceeblue cloud",
+  "description": "Videojs set of plugins for playing streams from the Ceeblue cloud. Supports WebRTC and WHEP, video quality switching, protocol fallbacks, and more.",
   "keywords": [
     "webrtc",
     "whip",
@@ -80,7 +80,7 @@
     "README.md": "doctoc --notitle"
   },
   "dependencies": {
-    "@ceeblue/webrtc-client": "^4.0.0",
+    "@ceeblue/webrtc-client": "^4.0.1",
     "eslint": "^8.55.0",
     "eslint-config-videojs": "^6.1.0",
     "eslint-plugin-jsdoc": "^46.9.0",
