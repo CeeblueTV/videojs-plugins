@@ -46,8 +46,8 @@ QUnit.test('Check sourceToObject', function(assert) {
   assert.equal(res.sourceType, SourceType.WEBRTC, 'WEBRTC source type');
   assert.equal(res.iceserver.urls[0], 'turn:localhost:3478?transport=tcp', 'WEBRTC ice server 1');
   assert.equal(res.iceserver.urls[1], 'turn:localhost:3478', 'WEBRTC ice server 2');
-  assert.equal(res.iceserver.username, 'csc_demo', 'WEBRTC ice servers username');
-  assert.equal(res.iceserver.credential, 'UtrAFClFFO', 'WEBRTC ice servers credential');
+  assert.equal(res.iceserver.username, 'ceeblue', 'WEBRTC ice servers username');
+  assert.equal(res.iceserver.credential, 'ceeblue', 'WEBRTC ice servers credential');
 
   done();
 });
