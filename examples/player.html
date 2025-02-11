@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- 
+<!--
 	Copyright 2023 Ceeblue B.V.
 -->
 <html lang="en">
@@ -19,9 +19,9 @@
 		integrity="sha384-TbilV5Lbhlwdyc4RuIV/JhD8NR+BfMrvz4BL5QFa2we1hQu6wvREr3v6XSRfCTRp" rel="stylesheet">
 	<link crossorigin="anonymous" href="https://use.fontawesome.com/releases/v5.1.0/css/fontawesome.css"
 		integrity="sha384-ozJwkrqb90Oa3ZNb+yKFW2lToAWYdTiF1vt8JiH5ptTGHTGcN7qdoR1F95e0kYyG" rel="stylesheet">
-	<link href="https://vjs.zencdn.net/8.7.0/video-js.css" rel="stylesheet">
+	<link href="https://vjs.zencdn.net/8.20.0/video-js.css" rel="stylesheet">
 	<link href="../dist/videojs-plugins.css" rel="stylesheet">
-	
+
 	<style>
 		body {
 			margin-top: 1em;
@@ -59,7 +59,7 @@
 					<video ref="videoPlayer" class="video-js vjs-default-skin vjs-fluid" playsinline controls autoplay></video>
 				</div>
 			</div>
-			
+
 			<div class="form-row" v-if="dataMessages.length > 0" disabled>
 				<div class="col-12">
 					<h5>Timed Metadatas</h5>
@@ -76,7 +76,7 @@
 							{{ option }}
 						</option>
 					</select>
-				</div>								
+				</div>
 				<div class="form-group col-6 col-sm-4">
 					<input :disabled="isPlaying()" class="form-control"
 						placeholder="Node host" type="text"
@@ -88,8 +88,8 @@
 						v-model="quality" title="Stream quality">
 				</div>
 			</div>
-		
-			<div class="form-row">				
+
+			<div class="form-row">
 				<div class="form-group col-6">
 					<input :disabled="isPlaying()" class="form-control"
 						placeholder="Stream name" type="text"
@@ -119,21 +119,21 @@
 		// import { createApp } from 'https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.js';
 		// production version, optimized for size and speed
 		import { createApp } from 'https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.prod.js';
-		import {} from 'https://cdn.jsdelivr.net/npm/webrtc-adapter/out/adapter.js';
-		import {} from 'https://vjs.zencdn.net/8.7.0/video.min.js';
-		import {} from '../dist/videojs-plugins.js';
-		import { Player } from './js/Player.js';
+		import 'https://cdn.jsdelivr.net/npm/webrtc-adapter/out/adapter.js';
+		import 'https://vjs.zencdn.net/8.20.0/video.min.js';
+		import '../dist/videojs-plugins.js';
+    import { Player } from './js/Player.js';
 
 		const SourceType = videojs.getPlugin('SourceController').SourceType;
-        const WebRTCSourceHandler = videojs.getTech('Html5').sourceHandlers.find((value) => value.name == 'ceeblue/videojs-plugins');
-		
+    const WebRTCSourceHandler = videojs.getTech('Html5').sourceHandlers.find((value) => value.name == 'ceeblue/videojs-plugins');
+
 		const {
         	Util,
 			NetAddress,
 			Connect,
 		} = WebRTCSourceHandler.webrtcClient.utils;
 		console.log('webrtc-client version:', WebRTCSourceHandler.webrtcClient.VERSION);
-	
+
 		const PlayState = {
 			PLAYING: 'PLAYING',
 			STARTING: 'STARTING',
@@ -200,7 +200,7 @@
 						const playerOptions = {
 							responsive: true,
 							html5: {
-								nativeControlsForTouch: false, 
+								nativeControlsForTouch: false,
 								vhs: {overrideNative: true},
 								nativeAudioTracks: false,
 								nativeVideoTracks: false,
@@ -229,8 +229,8 @@
 									src: Connect.buildURL(Connect.Type.WEBRTC, connectParams, protocol).toString(),
 									// Ceeblue specific options
 									iceserver: {
-										urls: ['turn:' + this.host.domain + ':3478?transport=tcp', 'turn:' + this.host.domain + ':3478'], 
-										username: 'ceeblue', 
+										urls: ['turn:' + this.host.domain + ':3478?transport=tcp', 'turn:' + this.host.domain + ':3478'],
+										username: 'ceeblue',
 										credential: 'ceeblue'
 									},
 									audiobutton: this.audiobutton,
@@ -239,7 +239,7 @@
 							}
 							sources.push(source);
 						}
-						
+
 						player = new Player(this.$refs.videoPlayer, connectParams, sources, playerOptions);
 						player.on('sourcechanged', (source) => {
 							console.log('sourcechanged', source);
