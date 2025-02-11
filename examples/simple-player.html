@@ -27,9 +27,9 @@
     throw new Error("host and stream parameters are required");
   }
 
-  // Initialize the video player
-  var player = new Player("video-player");
-  player.start(connectParams);
-</script>
+    // Initialize the video player
+    const player = new Player("video-player", connectParams);
+    player.start();
+  </script>
 </body>
 </html>
