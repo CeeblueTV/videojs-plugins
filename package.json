@@ -85,7 +85,7 @@
     "eslint-config-videojs": "^6.1.0",
     "eslint-plugin-jsdoc": "^46.9.0",
     "global": "^4.4.0",
-    "video.js": "8.7.0"
+    "video.js": "^8.20.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.5.0",
