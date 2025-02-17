@@ -85,7 +85,7 @@ const qualityButton = function(options) {
 
 // Register the plugins with video.js.
 videojs.registerPlugin('qualityButton', qualityButton);
-videojs.registerPlugin('SourceController', SourceController);
+videojs.registerPlugin('sourceController', SourceController);
 
 videojs.log('ceeblue/videojs-plugins ' + WebRTCSourceHandler.VERSION + ' loaded');
 
