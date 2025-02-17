@@ -77,10 +77,11 @@ videojs.getTech('Html5').registerSourceHandler(WebRTCSourceHandler, 0);
  * The quality button plugin.
  *
  * @param {Object} options Plugin options object
- * @return {boolean} the button if added, undefined otherwise
  */
 const qualityButton = function(options) {
-  return setupQualityButton(this, videojs.obj.merge({}, options));
+  this.ready(() => {
+    setupQualityButton(this, videojs.obj.merge({}, options));
+  });
 };
 
 // Register the plugins with video.js.
