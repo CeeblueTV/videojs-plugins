@@ -1,7 +1,7 @@
 import { utils } from '@ceeblue/webrtc-client';
 import videojs from 'video.js';
 
-const {EventEmitter, Connect, NetAddress} = utils;
+const {Connect, NetAddress} = utils;
 
 // This is not exported because we access it with the plugin SourceController from :
 // SourceController.SourceType
@@ -12,26 +12,19 @@ const SourceType = {
   WEBRTC: 'webrtc'
 };
 
+const Plugin = videojs.getPlugin('plugin');
+
 /**
  * Does the Videojs player source selection.
  * This class controls the order of the sources and the source selection.
  * It switches automatically to the next source if the current one fails.
  */
-export class SourceController extends EventEmitter {
+export class SourceController extends Plugin {
   /**
-   * Event triggered when the source changes.
-   *
-   * @param {string|null} source the source to play or null if no more source is available
+   * The list of possible source types
    */
-  onSourceChanged(source) {}
-
-  /**
-   * Is the controller started?
-   *
-   * @return {boolean} true if the controller has been started
-   */
-  get started() {
-    return this._sourceIndex > 0;
+  static get SourceType() {
+    return SourceType;
   }
 
   /**
@@ -48,74 +41,68 @@ export class SourceController extends EventEmitter {
    *
    * @param {string} source the source type to play
    */
-  set source(source) {
-    for (let i = 0; i < this._sources.length; i++) {
-      if (this._sources[i].sourceType === source) {
-        this._sourceIndex = i;
-        this._reset();
-        this._tryNextSource();
-        return;
-      }
+  set sourceType(source) {
+    if (!this._sources.has(source)) {
+      throw new Error('Unknown source ' + source);
     }
-    throw new Error('Unknown source ' + source);
+
+    this._sourceType = source;
+    this._reset();
+    this._trySource();
   }
 
   /**
-   * The list of possible source types
+   * Get the current source type
    */
-  static get SourceType() {
-    return SourceType;
+  get sourceType() {
+    return this._sourceType;
+  }
+
+  /**
+   * Get list of all available source types.
+   */
+  get sourceTypes() {
+    return [...this._sources.keys()];
   }
 
   /**
    * SourceController constructor
    *
-   * @param {VideojsPlayer} player Videojs player
-   * @param {Connect.Params} connectParams The Ceeblue connection parameters
-   * @param {Array<SourceType|SourceObject>} sources an array of sources to try in order
+   * @param {VideojsPlayer} player Videojs player instance
+   * @param {SourceObject} options The source controller options.
    */
-  constructor(player, connectParams, sources) {
-    super();
-    this._sourceIndex = 0;
-    this._player = player;
-    this._auto = true;
-    this._sources = [];
+  constructor(player, options) {
+    super(player, options);
 
-    if (!sources || !sources.length) {
+    const connectParams = options?.connectParams;
+    const sourceTypes = options?.sourceTypes || [
+      SourceType.WEBRTC, SourceType.LLHLS, SourceType.DASH, SourceType.HLS
+    ];
+
+    this._sourceType = options?.sourceType || sourceTypes[0];
+    this._player = player;
+    this._auto = !!(options?.autoRetry || true);
+    this._maxRetryCount = options?.maxRetries || sourceTypes.length;
+    this._sources = new Map();
+
+    if (!sourceTypes || !sourceTypes.length) {
       throw new Error('SourceController sources must not be empty');
     }
 
     // Initiate the list of Source Objects
-    for (let source of sources) {
-      source = SourceController.sourceToObject(source, connectParams);
+    for (let source of sourceTypes) {
+      source = this.sourceToObject(source, connectParams);
       if (source) {
-        this._sources.push(source);
+        this._sources.set(source.sourceType, source);
       }
     }
-  }
 
-  /**
-   * Start the source controller, try the first source.
-   *
-   * @param {string?} sourceType the name of the selected source to start with, if null the first source is played
-   */
-  start(sourceType) {
-    if (this.started) {
-      videojs.log.error('SourceController already started');
-      return;
-    }
-    this.source = sourceType || this._sources[0].sourceType;
-  }
-
-  /**
-   * Stop the source controller, reset the player.
-   */
-  stop() {
-    if (!this.started) {
-      return;
-    }
-    this._sourceIndex = 0;
-    this._reset();
+    player.on('error', this._onError.bind(this));
+    player.on('ended', this._onEnded.bind(this));
+    player.on('loadedmetadata', this._onLoadedMetadata.bind(this));
+    player.ready(() => {
+      this.sourceType = this._sourceType;
+    });
   }
 
   /**
@@ -125,8 +112,7 @@ export class SourceController extends EventEmitter {
    * @param {Connect.Params} connectParams The Ceeblue connection parameters
    * @return {Object} a videojs source object for videojs or null if the parameters are invalid
    */
-  static sourceToObject(source, connectParams) {
-
+  sourceToObject(source, connectParams) {
     if (typeof source !== 'string') {
       // Already a source object, set the sourceType and check the src property
       if (source.src === undefined) {
@@ -208,9 +194,6 @@ export class SourceController extends EventEmitter {
    * Reset the player
    */
   _reset() {
-    this._player.off('error');
-    this._player.off('loadedmetadata');
-    this._player.off('ended');
     // important before starting a new source!
     this._player.pause();
     this._player.reset();
@@ -219,54 +202,82 @@ export class SourceController extends EventEmitter {
   /**
    * Try the next source or ends if no more source is available.
    */
-  _tryNextSource() {
-    // Show error when all sources have been tried without success
-    if (this._sourceIndex >= this._sources.length) {
-      // end of sources
-      this._sourceIndex = 0;
-      this.onSourceChanged(null);
-      return;
-    }
-
-    const newSource = this._sources[this._sourceIndex++];
+  _trySource() {
+    const newSource = this._sources.get(this._sourceType);
 
     videojs.log('Trying source', newSource);
-    this._player.on('error', (_, error) => {
-      if (!error) {
-        error = this._player.error() && this._player.error().message;
-      }
-      videojs.log('Player error : ', error);
-      this._stopSource();
-    });
-    this._player.on('loadedmetadata', () => {
-      videojs.log('loadedmetadata');
-      this._player.qualityButton();
-      this.onSourceChanged(newSource.sourceType);
-    });
-    this._player.on('ended', (e) => {
-      videojs.log('Player ended');
-      this._stopSource();
-    });
     this._player.src(newSource);
   }
 
   /**
    * Stop the current source in the next time tick, then try next source.
    */
-  _stopSource() {
-    if (this._stopSourceTimeout) {
-      // already stopping
+  _tryNextSource() {
+    if (!this._auto || this._sources.size === 1) {
+      this._onSourceChanged(void 0);
       return;
     }
+
+    if (this._retryCount >= this._maxRetryCount) {
+      return;
+    }
+
+    if (this._stopSourceTimeout) {
+      return;
+    }
+
     this._stopSourceTimeout = setTimeout(() => {
+      const sourcesTypes = this.sourceTypes;
+      const sourceIndex = sourcesTypes.indexOf(this._sourceType);
+      const nextSource = sourcesTypes[(sourceIndex + 1) % sourcesTypes.length];
+
+      this._sourceType = nextSource;
+
       this._reset();
-      if (this._auto) {
-        this._tryNextSource();
-      } else {
-        this._sourceIndex = 0;
-        this.onSourceChanged(null);
-      }
-      this._stopSourceTimeout = null;
-    }, 0);
+      this._trySource();
+      this._retryCount++;
+      this._stopSourceTimeout = void 0;
+    }, 100);
+  }
+
+  /**
+   * Handle videojs error event
+   * @param {Event} _ the error event
+   * @param {string} error the error message
+   */
+  _onError(_, error) {
+    if (!error) {
+      error = this._player.error() && this._player.error().message;
+    }
+    videojs.log('Player error : ', error);
+    this._tryNextSource();
+  }
+
+  /**
+   * Handle videojs ended event.
+   */
+  _onEnded() {
+    videojs.log('Player ended');
+    this._tryNextSource();
+  }
+
+  /**
+   * Handle videojs loadedmetadata event.
+   */
+  _onLoadedMetadata() {
+    videojs.log('Player loadedmetadata');
+    this._onSourceChanged(this.sourceType);
+  }
+
+  /**
+   * Event triggered when the source changes.
+   *
+   * @param {string|null} source the source to play or null if no more source is available
+   */
+  _onSourceChanged(source) {
+    this.trigger({
+      type: 'sourcechanged',
+      details: { source }
+    });
   }
 }

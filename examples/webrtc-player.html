@@ -33,8 +33,19 @@
     }
 
     // Initialize the video player
-    const player = videojs("video-player");
-    player.qualityButton();
+    const player = videojs("video-player", {
+      plugins: {
+        sourceController: {
+          connectParams: {
+            endPoint: host,
+            streamName: stream,
+            accessToken: accessToken,
+          },
+          sourceTypes: ['webrtc']
+        },
+        qualityButton: {}
+      }
+    });
   </script>
 </body>
 </html>

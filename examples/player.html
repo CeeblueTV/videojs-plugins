@@ -122,13 +122,12 @@
     import 'https://cdn.jsdelivr.net/npm/webrtc-adapter/out/adapter.js';
     import 'https://vjs.zencdn.net/8.20.0/video.min.js';
     import '../dist/videojs-plugins.js';
-    import { Player } from './js/Player.js';
 
-    const SourceType = videojs.getPlugin('SourceController').SourceType;
+    const SourceType = videojs.getPlugin('sourceController').SourceType;
     const WebRTCSourceHandler = videojs.getTech('Html5').sourceHandlers.find((value) => value.name == 'ceeblue/videojs-plugins');
 
     const {
-          Util,
+      Util,
       NetAddress,
       Connect,
     } = WebRTCSourceHandler.webrtcClient.utils;
@@ -220,34 +219,22 @@
               query
             };
             const sources = [];
-            for (let i = 0; i < this.sources.length; i++) {
-              let source = this.sources[i];
-              if (source == SourceType.WEBRTC) {
-                // This is an example of custom Source Object to pass options to the WebRTC source handler
-                // You can also customize every source type in the same way
-                source = {
-                  src: Connect.buildURL(Connect.Type.WEBRTC, connectParams, protocol).toString(),
-                  // Ceeblue specific options
-                  iceserver: {
-                    urls: ['turn:' + this.host.domain + ':3478?transport=tcp', 'turn:' + this.host.domain + ':3478'],
-                    username: 'ceeblue',
-                    credential: 'ceeblue'
-                  },
-                  audiobutton: this.audiobutton,
-                  data: true
-                };
+            playerOptions.plugins = {
+              sourceController: {
+                connectParams,
               }
-              sources.push(source);
-            }
+            };
 
-            player = new Player(this.$refs.videoPlayer, connectParams, sources, playerOptions);
-            player.on('sourcechanged', (source) => {
+            player = videojs(this.$refs.videoPlayer, playerOptions);
+            player.sourceController().on('sourcechanged', (event) => {
+              const source = event.details.source;
+
               console.log('sourcechanged', source);
               this.dataMessages = '';
-              if (source == null) {
+              if (!source) {
                 this.stopPlayback();
               } else {
-                const qualityLevels = player.player.qualityLevels();
+                const qualityLevels = player.qualityLevels();
                 qualityLevels.on('change', (e) => {
                   if (qualityLevels.selectedIndex < 0)
                     return;
@@ -263,7 +250,7 @@
               }
             });
             // Listen to timed metadatas
-            player.player.textTracks().on('addtrack', (e) => {
+            player.textTracks().on('addtrack', (e) => {
               console.log('New text track', e);
               const track = e.track;
               track.on('cuechange', () => {
@@ -278,11 +265,11 @@
               });
             });
           }
-          player.start(selectedSource);
         },
         stopPlayback() {
           console.log('StopPlayback');
-          player.stop();
+          player.pause();
+          player.reset();
           player = null;
           this.dataMessages = '';
           this.source = '';
@@ -295,7 +282,7 @@
           if (!player) {
             this.startPlayback(e.target.text);
           } else {
-            player.source = e.target.text;
+            player.sourceController().sourceType = e.target.text;
           }
         },
         play() {
@@ -327,5 +314,4 @@
     }).mount('#main');
   </script>
 </body>
-
 </html>

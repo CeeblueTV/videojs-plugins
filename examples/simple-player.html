@@ -14,8 +14,6 @@
     <video id=video-player width=960 height=540 class="video-js vjs-default-skin" controls autoplay muted></video>
   </div>
   <script type="module">
-    import { Player } from "./js/Player.js";
-
     // Replace the source url with host and stream name from query string
     const url = new URL(window.location.href);
     const connectParams = {
@@ -28,8 +26,12 @@
     }
 
     // Initialize the video player
-    const player = new Player("video-player", connectParams);
-    player.start();
+    const player = videojs("video-player", {
+      plugins: {
+        sourceController: { connectParams },
+        qualityButton: {}
+      }
+    });
   </script>
 </body>
 </html>
