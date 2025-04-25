@@ -4,25 +4,25 @@
 -->
 <html lang="en">
 
-<head>
-  <title>Ceeblue Videojs Player</title>
-  <meta charset="utf-8">
-  <meta content="Ceeblue" name="author">
-  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <head>
+    <title>Ceeblue Videojs Player</title>
+    <meta charset="utf-8">
+    <meta content="Ceeblue" name="author">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
 
-  <link href="assets/ceeblue-logo-32x32.png" rel="icon" sizes="32x32">
+    <link href="assets/ceeblue-logo-32x32.png" rel="icon" sizes="32x32">
     <link href="assets/ceeblue-logo-192x192.png" rel="icon" sizes="192x192">
 
-  <link crossorigin="anonymous" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
-    integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" rel="stylesheet">
-  <link crossorigin="anonymous" href="https://use.fontawesome.com/releases/v5.1.0/css/solid.css"
-    integrity="sha384-TbilV5Lbhlwdyc4RuIV/JhD8NR+BfMrvz4BL5QFa2we1hQu6wvREr3v6XSRfCTRp" rel="stylesheet">
-  <link crossorigin="anonymous" href="https://use.fontawesome.com/releases/v5.1.0/css/fontawesome.css"
-    integrity="sha384-ozJwkrqb90Oa3ZNb+yKFW2lToAWYdTiF1vt8JiH5ptTGHTGcN7qdoR1F95e0kYyG" rel="stylesheet">
-  <link href="https://vjs.zencdn.net/8.20.0/video-js.css" rel="stylesheet">
-  <link href="../dist/videojs-plugins.css" rel="stylesheet">
+    <link crossorigin="anonymous" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+      integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" rel="stylesheet">
+    <link crossorigin="anonymous" href="https://use.fontawesome.com/releases/v5.1.0/css/solid.css"
+      integrity="sha384-TbilV5Lbhlwdyc4RuIV/JhD8NR+BfMrvz4BL5QFa2we1hQu6wvREr3v6XSRfCTRp" rel="stylesheet">
+    <link crossorigin="anonymous" href="https://use.fontawesome.com/releases/v5.1.0/css/fontawesome.css"
+      integrity="sha384-ozJwkrqb90Oa3ZNb+yKFW2lToAWYdTiF1vt8JiH5ptTGHTGcN7qdoR1F95e0kYyG" rel="stylesheet">
+    <link href="https://vjs.zencdn.net/8.20.0/video-js.css" rel="stylesheet">
+    <link href="../dist/videojs-plugins.css" rel="stylesheet">
 
-  <style>
+    <style>
     body {
       margin-top: 1em;
       margin-bottom: 3em;
@@ -31,90 +31,90 @@
     [v-cloak] {
       display: none;
     }
-  </style>
-</head>
+    </style>
+  </head>
 
-<body class="container">
-  <div class="row">
-    <div class="row col-12">
-      <div class="col-12 col-md-6">
-        <a href="https://ceeblue.net"><img alt="CEEBLUE Media Services" class="rounded mx-auto d-block" src="assets/ceeblue-logo.png"/></a>
-      </div>
-      <div class="col-12 col-md-6 d-flex align-items-center justify-content-center">
-        <a href="https://videojs.com" id="videojs-logo"><img src="assets/videojs-logo-black.svg"></img></a>
-      </div>
-    </div>
-
-    <div class="col-md-12 mt-4" id="main">
-      <div class="col-12">
-        <ul class="nav nav-pills nav-fill">
-          <li v-for="value in sources" class="nav-item">
-            <a class="nav-link" href="#" :class="{ active: value == source}" v-on:click.stop.prevent="changeSource">{{ value }}</a>
-          </li>
-        </ul>
-      </div>
-
-      <div class="card text-center border-0">
-        <div class="card-body">
-          <video ref="videoPlayer" class="video-js vjs-default-skin vjs-fluid" playsinline controls autoplay></video>
+  <body class="container">
+    <div class="row">
+      <div class="row col-12">
+        <div class="col-12 col-md-6">
+          <a href="https://ceeblue.net"><img alt="CEEBLUE Media Services" class="rounded mx-auto d-block" src="assets/ceeblue-logo.png"/></a>
+        </div>
+        <div class="col-12 col-md-6 d-flex align-items-center justify-content-center">
+          <a href="https://videojs.com" id="videojs-logo"><img src="assets/videojs-logo-black.svg"></img></a>
         </div>
       </div>
 
-      <div class="form-row" v-if="dataMessages.length > 0" disabled>
+      <div class="col-md-12 mt-4" id="main">
         <div class="col-12">
-          <h5>Timed Metadatas</h5>
-        </div>
-        <div class="form-group col-12 text-left border rounded overflow-auto" style="white-space: pre;">{{ dataMessages }}</div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group col-6 col-sm-4">
-          <select class="custom-select" id="signaling-selection"
-            :disabled="playState !== PlayState.STOPPED"
-            v-model="connectorType" title="Signaling">
-            <option v-bind:value="option" v-for="option in connectorTypes">
-              {{ option }}
-            </option>
-          </select>
-        </div>
-        <div class="form-group col-6 col-sm-4">
-          <input :disabled="isPlaying()" class="form-control"
-            placeholder="Node host" type="text"
-            v-model="host" title="Ceeblue node host">
-        </div>
-        <div class="form-group col-6 col-sm-4">
-          <input disabled class="form-control"
-            placeholder="Video quality" type="text"
-            v-model="quality" title="Stream quality">
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group col-6">
-          <input :disabled="isPlaying()" class="form-control"
-            placeholder="Stream name" type="text"
-            v-model="streamName" title="Stream name">
+          <ul class="nav nav-pills nav-fill">
+            <li v-for="value in sources" class="nav-item">
+              <a class="nav-link" href="#" :class="{ active: value == source}" v-on:click.stop.prevent="changeSource">{{ value }}</a>
+            </li>
+          </ul>
         </div>
 
-        <div class="form-group col-6">
-          <input :disabled="isPlaying()" class="form-control"
-            placeholder="Access token cc0f52bb-92bb-462b-8218-88c3febe8533" type="text"
-            v-model="accessToken" title="Private stream token">
+        <div class="card text-center border-0">
+          <div class="card-body">
+            <video ref="videoPlayer" class="video-js vjs-default-skin vjs-fluid" playsinline controls autoplay></video>
+          </div>
         </div>
-      </div>
 
-      <div class="d-flex justify-content-center" v-cloak>
-        <button class="btn" type="button"
-          v-bind:class="{ 'btn-danger': isPlaying(), 'btn-success': isStopped(), 'btn-secondary': isStarting() }"
-          v-on:click="play">
-          <span>{{ playButtonCaption() }} <i class="fas fa-spinner fa-pulse"
-              v-if="isStarting()"></i></span>
-        </button>
+        <div class="form-row" v-if="dataMessages.length > 0" disabled>
+          <div class="col-12">
+            <h5>Timed Metadatas</h5>
+          </div>
+          <div class="form-group col-12 text-left border rounded overflow-auto" style="white-space: pre;">{{ dataMessages }}</div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group col-6 col-sm-4">
+            <select class="custom-select" id="signaling-selection"
+              :disabled="playState !== PlayState.STOPPED"
+              v-model="connectorType" title="Signaling">
+              <option v-bind:value="option" v-for="option in connectorTypes">
+                {{ option }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group col-6 col-sm-4">
+            <input :disabled="isPlaying()" class="form-control"
+              placeholder="Node host" type="text"
+              v-model="host" title="Ceeblue node host">
+          </div>
+          <div class="form-group col-6 col-sm-4">
+            <input disabled class="form-control"
+              placeholder="Video quality" type="text"
+              v-model="quality" title="Stream quality">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group col-6">
+            <input :disabled="isPlaying()" class="form-control"
+              placeholder="Stream name" type="text"
+              v-model="streamName" title="Stream name">
+          </div>
+
+          <div class="form-group col-6">
+            <input :disabled="isPlaying()" class="form-control"
+              placeholder="Access token cc0f52bb-92bb-462b-8218-88c3febe8533" type="text"
+              v-model="accessToken" title="Private stream token">
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-center" v-cloak>
+          <button class="btn" type="button"
+            v-bind:class="{ 'btn-danger': isPlaying(), 'btn-success': isStopped(), 'btn-secondary': isStarting() }"
+            v-on:click="play">
+            <span>{{ playButtonCaption() }} <i class="fas fa-spinner fa-pulse"
+                v-if="isStarting()"></i></span>
+          </button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <script type="module">
+    <script type="module">
     // development version, includes helpful console warnings
     // import { createApp } from 'https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.js';
     // production version, optimized for size and speed
@@ -122,13 +122,12 @@
     import 'https://cdn.jsdelivr.net/npm/webrtc-adapter/out/adapter.js';
     import 'https://vjs.zencdn.net/8.20.0/video.min.js';
     import '../dist/videojs-plugins.js';
-    import { Player } from './js/Player.js';
 
-    const SourceType = videojs.getPlugin('SourceController').SourceType;
+    const SourceType = videojs.getPlugin('sourceController').SourceType;
     const WebRTCSourceHandler = videojs.getTech('Html5').sourceHandlers.find((value) => value.name == 'ceeblue/videojs-plugins');
 
     const {
-          Util,
+      Util,
       NetAddress,
       Connect,
     } = WebRTCSourceHandler.webrtcClient.utils;
@@ -208,7 +207,8 @@
               // Ceeblue specific options
               qualityButton: this.videobutton,
               retryCount: this.retryCount,
-              auto: this.auto
+              auto: this.auto,
+              muted: true // Ensure muted is set in player options
             }
 
             // Build the sources list with custom options for WebRTC
@@ -220,34 +220,22 @@
               query
             };
             const sources = [];
-            for (let i = 0; i < this.sources.length; i++) {
-              let source = this.sources[i];
-              if (source == SourceType.WEBRTC) {
-                // This is an example of custom Source Object to pass options to the WebRTC source handler
-                // You can also customize every source type in the same way
-                source = {
-                  src: Connect.buildURL(Connect.Type.WEBRTC, connectParams, protocol).toString(),
-                  // Ceeblue specific options
-                  iceserver: {
-                    urls: ['turn:' + this.host.domain + ':3478?transport=tcp', 'turn:' + this.host.domain + ':3478'],
-                    username: 'ceeblue',
-                    credential: 'ceeblue'
-                  },
-                  audiobutton: this.audiobutton,
-                  data: true
-                };
+            playerOptions.plugins = {
+              sourceController: {
+                connectParams,
               }
-              sources.push(source);
-            }
+            };
 
-            player = new Player(this.$refs.videoPlayer, connectParams, sources, playerOptions);
-            player.on('sourcechanged', (source) => {
+            player = videojs(this.$refs.videoPlayer, playerOptions);
+            player.sourceController().on('sourcechanged', (event) => {
+              const source = event.details.source;
+
               console.log('sourcechanged', source);
               this.dataMessages = '';
-              if (source == null) {
+              if (!source) {
                 this.stopPlayback();
               } else {
-                const qualityLevels = player.player.qualityLevels();
+                const qualityLevels = player.qualityLevels();
                 qualityLevels.on('change', (e) => {
                   if (qualityLevels.selectedIndex < 0)
                     return;
@@ -263,7 +251,7 @@
               }
             });
             // Listen to timed metadatas
-            player.player.textTracks().on('addtrack', (e) => {
+            player.textTracks().on('addtrack', (e) => {
               console.log('New text track', e);
               const track = e.track;
               track.on('cuechange', () => {
@@ -277,12 +265,21 @@
                 this.dataMessages += "[" + cue.startTime.toFixed(3) + "] " + cue.text + '\n';
               });
             });
+            // Handle play promise properly
+            player.ready(() => {
+              const playPromise = player.play();
+              if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                  console.log('Playback failed:', error);
+                });
+              }
+            });
           }
-          player.start(selectedSource);
         },
         stopPlayback() {
           console.log('StopPlayback');
-          player.stop();
+          player.pause();
+          player.reset();
           player = null;
           this.dataMessages = '';
           this.source = '';
@@ -295,7 +292,7 @@
           if (!player) {
             this.startPlayback(e.target.text);
           } else {
-            player.source = e.target.text;
+            player.sourceController().sourceType = e.target.text;
           }
         },
         play() {
@@ -325,7 +322,6 @@
         }
       },
     }).mount('#main');
-  </script>
-</body>
-
+    </script>
+  </body>
 </html>

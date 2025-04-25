@@ -33,3 +33,10 @@ docs/api/
 test/dist/
 .eslintcache
 .yo-rc.json
+
+# VitePress
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+docs/.vitepress/temp/
+docs/public/*.bundle.js
+__screenshots__
