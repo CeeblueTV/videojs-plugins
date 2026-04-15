@@ -150,7 +150,6 @@
 
           audio: null,
           video: null,
-          audiobutton: true,
           videobutton: true,
           retryCount: 0,
           auto: true,
@@ -175,7 +174,6 @@
 
         this.audioTrack = options.audio;
         this.videoTrack = options.video;
-        this.audiobutton = options.audiobutton;
         this.videobutton = options.videobutton != false;
         this.retryCount = options.retryCount;
         this.auto = options.auto !== false;
@@ -321,8 +319,6 @@
 
               track.on('cuechange', () => {
                 const cue = track.activeCues[0];
-                console.log("this is a cue change", cue);
-
                 if (!cue) {
                   return;
                 }

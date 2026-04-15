@@ -88,7 +88,7 @@
     "README.md": "doctoc --notitle"
   },
   "dependencies": {
-    "@ceeblue/webrtc-client": "^4.1.0",
+    "@ceeblue/webrtc-client": "^5.2.0",
     "global": "^4.4.0",
     "video.js": "^8.22.0"
   },
