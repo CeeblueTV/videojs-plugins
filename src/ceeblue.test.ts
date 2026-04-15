@@ -3,7 +3,6 @@ import videojs from 'video.js';
 import type Player from 'video.js/dist/types/player';
 import './plugin';
 import { CeeblueVideoJSPlugin, type CeeblueVideoJSPluginOptions } from './ceeblue';
-import 'videojs-contrib-quality-levels';
 
 interface PlayerWithCeeblue extends Player {
   ceeblue: () => CeeblueVideoJSPlugin;

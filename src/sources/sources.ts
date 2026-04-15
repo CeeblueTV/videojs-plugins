@@ -185,6 +185,7 @@ type CeeblueDeterminedSourceType = {
 export function determineSourceTypeFromURL(src: string): CeeblueDeterminedSourceType | void {
   try {
     const url = new URL(src);
+    const pathParts = url.pathname.split('/').filter(Boolean);
 
     if (!/^(http|ws)s?:/.test(url.protocol)) {
       return void 0;
@@ -197,7 +198,7 @@ export function determineSourceTypeFromURL(src: string): CeeblueDeterminedSource
       };
     }
 
-    const application = url.pathname.split('/')[1];
+    const application = pathParts[0];
 
     if (application === 'webrtc') {
       return {
@@ -206,10 +207,10 @@ export function determineSourceTypeFromURL(src: string): CeeblueDeterminedSource
       };
     }
 
-    const index = url.pathname.split('/').pop();
+    const index = pathParts[pathParts.length - 1];
 
     if (index === 'index.m3u8') {
-      const format = url.pathname.split('/')[0];
+      const format = pathParts[0];
 
       if (format === 'cmaf') {
         return {
@@ -274,6 +275,7 @@ function expandSourceToURLSource(source: CeeblueSource): VideojsSourceObject|Vid
 function buildCloudSource(source: CeeblueCloudSource): VideojsSourceObject[] {
   const usedProtocols = source.protocols?.length ? source.protocols : protocols;
   const sources: VideojsSourceObject[] = [];
+  const hlsFormat = source.settings?.hls?.format ?? 'hls';
 
   for (const proto of usedProtocols) {
     if (!protocols.includes(proto)) {
@@ -294,7 +296,7 @@ function buildCloudSource(source: CeeblueCloudSource): VideojsSourceObject[] {
     switch (proto) {
     case 'hls':
       urlPorotocol = 'https';
-      format = 'cmaf';
+      format = hlsFormat;
       index = 'index.m3u8';
       type = 'application/vnd.apple.mpegurl';
       break;

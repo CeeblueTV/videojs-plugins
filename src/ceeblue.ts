@@ -2,15 +2,16 @@ import videojs from 'video.js';
 import type Player from 'video.js/dist/types/player';
 import type PluginType from 'video.js/dist/types/plugin';
 import { expandSourcesToVideoJSSources, protocols, type CeeblueSourcesOptions, type VideojsSourceObject} from './sources/sources';
-import { QualityMenuButton } from './components/QualityMenuButton';
 import type QualityLevelList from 'videojs-contrib-quality-levels/dist/types/quality-level-list';
 import type { Event } from 'video.js/dist/types/event-target';
+import type { QualityButtonPlugin } from './qualityButton';
 
 const Plugin = videojs.getPlugin('plugin') as unknown as typeof PluginType;
 
 // Extend the Player type to include qualityLevels
 type PlayerWithQualityLevels = Player & {
   qualityLevels: () => QualityLevelList | undefined;
+  qualityButton?: () => QualityButtonPlugin;
 };
 
 // Replaced with the plugin's version during the build process.
@@ -89,15 +90,11 @@ export class CeeblueVideoJSPlugin extends Plugin {
   private _sources: VideojsSourceObject[] = [];
   private _currentSourceIndex: number = 0;
 
-  /**
-   * The quality buttons components if enabled.
-   */
-  private _qualityButton?: QualityMenuButton | void;
-
   private _retryCount: number = 0;
   private _maxRetries: number = 3;
   private _gracePeriod: number = 2000;
   private _retryTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _suspendFallback = false;
 
   /**
    * SourceController constructor
@@ -124,7 +121,6 @@ export class CeeblueVideoJSPlugin extends Plugin {
     this._currentSourceIndex = 0;
     this._player.src(this._sources[0]);
 
-    player.ready(this._handleReady.bind(this));
     player.on('error', this._handleError.bind(this));
     player.on('ended', this._handleEnded.bind(this));
     player.on('loadedmetadata', this._handleLoadedMetadata.bind(this));
@@ -165,6 +161,8 @@ export class CeeblueVideoJSPlugin extends Plugin {
    * @param source The source to set
    */
   private async _setSource(source: VideojsSourceObject) {
+    this._suspendFallback = true;
+
     try {
       // Pause the player
       this._player.pause();
@@ -176,7 +174,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
       this._player.src(source);
 
       // Handle source change event
-      this._handleSourceChanged(source.src);
+      this._handleSourceChanged(source);
 
       // Try to play the new source
       await this._player.play();
@@ -185,75 +183,10 @@ export class CeeblueVideoJSPlugin extends Plugin {
       if (this._options.autoFallback) {
         this._scheduleRetry();
       }
-    }
-  }
-
-  /**
-   * Creates and adds the quality controller button the control bar.
-   */
-  _addQualityButton() {
-    // Ensure quality levels plugin is available
-    if (typeof this._player.qualityLevels !== 'function') {
-      this._player.log.warn('Quality levels plugin not found. Please ensure videojs-contrib-quality-levels is loaded.');
-      return;
-    }
-
-    // Initialize quality levels if not already done
-    const qualityLevels = this._player.qualityLevels();
-
-    if (!qualityLevels) {
-      this._player.log.warn('Failed to initialize quality levels');
-      return;
-    }
-
-    // @ts-expect-error - controlBar type is missing.
-    const controlBar = this._player.controlBar;
-
-    if (!controlBar) {
-      this._player.log.warn('player.controlBar is not available, Skipping adding quality button');
-      return;
-    }
-
-    // Remove existing quality button if any
-    if (this._qualityButton) {
-      controlBar.removeChild(this._qualityButton);
-      this._qualityButton = undefined;
-    }
-
-    this._qualityButton = new QualityMenuButton(this._player, {
-      title: 'Quality',
-      qualities: qualityLevels,
-      buttonClass: 'vjs-video-button'
-    });
-
-    // Add the button before the audio track button if it exists, otherwise add it to the end
-    const audioTrackButton = controlBar.getChild('audioTrackButton');
-
-    if (audioTrackButton) {
-      controlBar.el().insertBefore(
-        controlBar.addChild(this._qualityButton).el(),
-        audioTrackButton.el()
-      );
-    } else {
-      controlBar.addChild(this._qualityButton);
-    }
-
-    // Force an update of the quality menu
-    this._qualityButton.update();
-  }
-
-  /**
-   * Handle Player ready callback.
-   */
-  private _handleReady() {
-    if (this.isQualityOptionsEnabled) {
-      // Add quality button after player is ready and metadata is loaded
-      this._player.one('loadedmetadata', () => {
-        // Add a small delay to ensure quality levels are populated
-        setTimeout(() => {
-          this._addQualityButton();
-        }, 500);
-      });
+    } finally {
+      setTimeout(() => {
+        this._suspendFallback = false;
+      }, 0);
     }
   }
 
@@ -261,9 +194,17 @@ export class CeeblueVideoJSPlugin extends Plugin {
    * Reset VideoJS player state.
    */
   _reset() {
+    this._suspendFallback = true;
+
     // reset VideoJS state.
     this._player.pause();
     this._player.reset();
+    this._player.error(null);
+    this._handleSourceChanged();
+
+    setTimeout(() => {
+      this._suspendFallback = false;
+    }, 0);
   }
 
   /**
@@ -272,6 +213,10 @@ export class CeeblueVideoJSPlugin extends Plugin {
    * @param error the error message
    */
   _handleError(_: Event, error: unknown) {
+    if (this._suspendFallback) {
+      return;
+    }
+
     if (!error) {
       error = this._player.error()?.message;
     }
@@ -286,6 +231,10 @@ export class CeeblueVideoJSPlugin extends Plugin {
    * Handle videojs ended event.
    */
   _handleEnded() {
+    if (this._suspendFallback) {
+      return;
+    }
+
     // If auto fallback is enabled, try the next source
     if (this._options.autoFallback) {
       this._trySource();
@@ -296,7 +245,14 @@ export class CeeblueVideoJSPlugin extends Plugin {
    * Handle loaded metadata callback.
    */
   private _handleLoadedMetadata() {
-    // Quality button is now added in _handleReady
+    if (!this.isQualityOptionsEnabled) {
+      return;
+    }
+
+    // Delay slightly so VHS/WebRTC quality levels have time to populate.
+    setTimeout(() => {
+      this._player.qualityButton?.().update();
+    }, 500);
   }
 
   /**
@@ -304,7 +260,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
    *
    * @param source the source to play or null if no more source is available
    */
-  _handleSourceChanged(source?: string) {
+  _handleSourceChanged(source?: VideojsSourceObject) {
     this._player.trigger({
       type: 'sourcechanged',
       details: { source }
@@ -395,6 +351,16 @@ export class CeeblueVideoJSPlugin extends Plugin {
     this._currentSourceIndex = index;
 
     this._setSource(source);
+  }
+
+  stop() {
+    if (this._retryTimeout) {
+      clearTimeout(this._retryTimeout);
+      this._retryTimeout = null;
+    }
+
+    this._retryCount = 0;
+    this._reset();
   }
 
   /**

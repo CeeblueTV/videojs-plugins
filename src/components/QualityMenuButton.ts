@@ -5,6 +5,7 @@ import type Player from 'video.js/dist/types/player';
 import type QualityLevelList from 'videojs-contrib-quality-levels/dist/types/quality-level-list';
 import type QualityLevel from 'videojs-contrib-quality-levels/dist/types/quality-level';
 import type { Event } from 'video.js/dist/types/event-target';
+import type ComponentType from 'video.js/dist/types/component';
 
 const MenuButton = videojs.getComponent('MenuButton') as unknown as typeof MenuButtonType;
 
@@ -71,7 +72,7 @@ export class QualityMenuButton extends MenuButton {
     const menuItems = [];
 
     menuItems.push(this._createMenuItem({
-      label: 'Auto',
+      label: 'AUTO',
       value: 'auto',
       selected: isAuto
     }));
@@ -80,9 +81,10 @@ export class QualityMenuButton extends MenuButton {
     for (let i = 0; i < this.options_.qualities.length; i++) {
       // @ts-expect-error - QualityLevels is missing ArrayLike Type
       const quality = this.options_.qualities[i];
+      const isCurrentQuality = i === this.options_.qualities.selectedIndex;
 
       const trackItem = this._createMenuItem({
-        label: quality.height + 'p',
+        label: quality.height + 'p' + (isAuto && isCurrentQuality ? ' ✓' : ''),
         value: quality.id,
         // Note: with VHS quality.enable can be false even if it is the selected quality
         selected: !isAuto && quality.enabled,
@@ -168,3 +170,5 @@ export class QualityMenuButton extends MenuButton {
     }
   }
 }
+
+videojs.registerComponent('QualityMenuButton', QualityMenuButton as unknown as ComponentType);
