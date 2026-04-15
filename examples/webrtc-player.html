@@ -11,7 +11,10 @@
     <script src="../dist/videojs-plugins.js"></script>
     <div id="video_container">
       <video id=video-player width=960 height=540 class="video-js vjs-default-skin" controls autoplay muted>
-        <!-- The following src is a sample URL that will be replaced with "host" and "stream" query parameters -->
+        <!-- 
+          The following src is a sample URL that will be replaced with "host" and "stream" query parameters
+          You can also simply set the source URL directly in the HTML if you don't want to use query parameters
+        -->
         <source src="wss://host/streamName">
       </video>
     </div>
@@ -33,19 +36,9 @@
     }
 
     // Initialize the video player
-    const player = videojs("video-player", {
-      plugins: {
-        sourceController: {
-          connectParams: {
-            endPoint: host,
-            streamName: stream,
-            accessToken: accessToken,
-          },
-          sourceTypes: ['webrtc']
-        },
-        qualityButton: {}
-      }
-    });
+    const player = videojs("video-player");
+
+    player.qualityButton();
     </script>
   </body>
 </html>

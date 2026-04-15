@@ -118,20 +118,16 @@
     // development version, includes helpful console warnings
     // import { createApp } from 'https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.js';
     // production version, optimized for size and speed
+    import {
+      Util,
+      NetAddress,
+    } from 'https://cdn.jsdelivr.net/npm/@ceeblue/web-utils@7.8.0/dist/web-utils.min.js';
     import { createApp } from 'https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.prod.js';
     import 'https://cdn.jsdelivr.net/npm/webrtc-adapter/out/adapter.js';
     import 'https://vjs.zencdn.net/8.20.0/video.min.js';
     import '../dist/videojs-plugins.js';
 
-    const SourceType = videojs.getPlugin('sourceController').SourceType;
-    const WebRTCSourceHandler = videojs.getTech('Html5').sourceHandlers.find((value) => value.name == 'ceeblue/videojs-plugins');
-
-    const {
-      Util,
-      NetAddress,
-      Connect,
-    } = WebRTCSourceHandler.webrtcClient.utils;
-    console.log('webrtc-client version:', WebRTCSourceHandler.webrtcClient.VERSION);
+    const Ceeblue = videojs.getPlugin('ceeblue');
 
     const PlayState = {
       PLAYING: 'PLAYING',
@@ -140,6 +136,7 @@
     };
     // /!\ keep this outside of the app to avoid issues with vuejs proxying)
     let player = null; // the videojs Player
+    let textTracksBound = false;
 
     createApp({
       data() {
@@ -160,8 +157,9 @@
 
           connectorTypes: ['WebSocket (WS)', 'HTTP (WHEP)'],
           connectorType: 'WebSocket (WS)',
-          sources: [SourceType.WEBRTC, SourceType.LLHLS, SourceType.DASH, SourceType.HLS],
+          sources: Ceeblue.protocols,
           source: '',
+          playerOptions: {},
 
           dataMessages: '',
           quality: '',
@@ -178,113 +176,198 @@
         this.audioTrack = options.audio;
         this.videoTrack = options.video;
         this.audiobutton = options.audiobutton;
-        this.videobutton = options.videobutton;
+        this.videobutton = options.videobutton != false;
         this.retryCount = options.retryCount;
         this.auto = options.auto !== false;
         this.connectorType = host && host.toLowerCase().startsWith('http')? this.connectorTypes[1] : this.connectorTypes[0];
       },
       methods: {
-        startPlayback(selectedSource) {
-          this.playState = PlayState.STARTING;
+        buildProtocols(selectedSource) {
+          if (!selectedSource) {
+            return [...this.sources];
+          }
 
-          // filter query params
-          const query = {};
+          const orderedProtocols = this.sources.filter((source) => source !== selectedSource);
+
+          return [selectedSource, ...orderedProtocols];
+        },
+        buildQueryParams() {
+          const query = new URLSearchParams();
+
           if (this.audioTrack) {
-            query.audio=this.audioTrack;
+            query.set('audio', this.audioTrack);
           }
           if (this.videoTrack) {
-            query.video=this.videoTrack;
+            query.set('video', this.videoTrack);
           }
-          if (!player) {
-            const playerOptions = {
-              responsive: true,
-              html5: {
-                nativeControlsForTouch: false,
-                vhs: {overrideNative: true},
-                nativeAudioTracks: false,
-                nativeVideoTracks: false,
-              },
-              // Ceeblue specific options
-              qualityButton: this.videobutton,
-              retryCount: this.retryCount,
-              auto: this.auto,
-              muted: true // Ensure muted is set in player options
+
+          return query;
+        },
+        buildPlayerOptions(selectedSource) {
+          const signaling = this.connectorType === this.connectorTypes[1] ? 'whip' : 'ceeblue-ws';
+
+          return {
+            responsive: true,
+            muted: true,
+            html5: {
+              nativeControlsForTouch: false,
+              vhs: {overrideNative: true},
+              nativeAudioTracks: false,
+              nativeVideoTracks: false,
+            },
+            plugins: {
+              ceeblue: {
+                autoFallback: this.auto,
+                endPoint: this.host.toString(),
+                streamName: this.streamName,
+                accessToken: this.accessToken || void 0,
+                maxRetries: Number.parseInt(this.retryCount, 10) || 0,
+                enableQualityOptions: !!this.videobutton,
+                protocols: this.buildProtocols(selectedSource),
+                query: this.buildQueryParams(),
+                settings: {
+                  webrtc: {
+                    signaling,
+                  }
+                }
+              }
+            }
+          };
+        },
+        getCurrentProtocol() {
+          const plugin = player?.ceeblue?.();
+
+          return plugin?.currentSource?.sourceType || '';
+        },
+        syncPlaybackState(nextState) {
+          this.playState = nextState;
+          this.source = nextState === PlayState.STOPPED ? '' : this.getCurrentProtocol();
+
+          if (nextState === PlayState.STOPPED) {
+            this.quality = '';
+          }
+        },
+        updateQualityFromLevels() {
+          if (!player || typeof player.qualityLevels !== 'function') {
+            this.quality = '';
+            return;
+          }
+
+          const qualityLevels = player.qualityLevels();
+
+          if (!qualityLevels || qualityLevels.selectedIndex < 0) {
+            this.quality = '';
+            return;
+          }
+
+          const quality = qualityLevels[qualityLevels.selectedIndex];
+
+          if (!quality) {
+            this.quality = '';
+            return;
+          }
+
+          this.quality = quality.width + 'x' + quality.height + ' ' + Math.floor(quality.bitrate / 1000) + 'kbps';
+        },
+        bindPlayerEvents() {
+          player.on('sourcechanged', (event) => {
+            const source = event.details.source;
+
+            console.log('sourcechanged', source);
+            this.dataMessages = '';
+            this.source = source?.sourceType || this.getCurrentProtocol();
+            this.updateQualityFromLevels();
+          });
+
+          player.on('loadstart', () => {
+            this.syncPlaybackState(PlayState.STARTING);
+          });
+
+          player.on('loadedmetadata', () => {
+            this.syncPlaybackState(PlayState.PLAYING);
+            this.updateQualityFromLevels();
+          });
+
+          player.on('playing', () => {
+            this.syncPlaybackState(PlayState.PLAYING);
+          });
+
+          player.on('pause', () => {
+            if (player.ended()) {
+              return;
             }
 
-            // Build the sources list with custom options for WebRTC
-            const protocol = this.connectorType === this.connectorTypes[1]? 'https' : 'wss';
-            const connectParams = {
-              endPoint: protocol + '://' + this.host.toString(),
-              streamName:this.streamName,
-              accessToken:this.accessToken,
-              query
-            };
-            const sources = [];
-            playerOptions.plugins = {
-              sourceController: {
-                connectParams,
-              }
-            };
+            if (player.currentSrc()) {
+              this.syncPlaybackState(PlayState.STOPPED);
+            }
+          });
 
-            player = videojs(this.$refs.videoPlayer, playerOptions);
-            player.sourceController().on('sourcechanged', (event) => {
-              const source = event.details.source;
+          player.on('ended', () => {
+            this.syncPlaybackState(PlayState.STOPPED);
+          });
 
-              console.log('sourcechanged', source);
-              this.dataMessages = '';
-              if (!source) {
-                this.stopPlayback();
-              } else {
-                const qualityLevels = player.qualityLevels();
-                qualityLevels.on('change', (e) => {
-                  if (qualityLevels.selectedIndex < 0)
-                    return;
-                  const quality = qualityLevels[qualityLevels.selectedIndex];
-                  this.quality = quality.width + 'x' + quality.height + ' ' + Math.floor(quality.bitrate/1000) + 'kbps';
-                });
-                if (qualityLevels.selectedIndex >= 0) {
-                  const quality = qualityLevels[qualityLevels.selectedIndex];
-                  this.quality = quality.width + 'x' + quality.height + ' ' + Math.floor(quality.bitrate/1000) + 'kbps';
-                }
-                this.source = source;
-                this.playState = PlayState.PLAYING;
-              }
+          if (typeof player.qualityLevels === 'function') {
+            const qualityLevels = player.qualityLevels();
+
+            qualityLevels?.on('change', () => {
+              this.updateQualityFromLevels();
             });
-            // Listen to timed metadatas
+          }
+
+          if (!textTracksBound) {
             player.textTracks().on('addtrack', (e) => {
               console.log('New text track', e);
               const track = e.track;
+
               track.on('cuechange', () => {
                 const cue = track.activeCues[0];
-                if (!cue)
+                console.log("this is a cue change", cue);
+
+                if (!cue) {
                   return;
-                // If the message has more than 3 rows, remove the first one
+                }
                 if (this.dataMessages.split(/\r\n|\r|\n/).length > 3) {
                   this.dataMessages = this.dataMessages.substring(this.dataMessages.indexOf('\n') + 1);
                 }
-                this.dataMessages += "[" + cue.startTime.toFixed(3) + "] " + cue.text + '\n';
+                this.dataMessages += '[' + cue.startTime.toFixed(3) + '] ' + cue.text + '\n';
               });
             });
-            // Handle play promise properly
-            player.ready(() => {
-              const playPromise = player.play();
-              if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                  console.log('Playback failed:', error);
-                });
-              }
-            });
+            textTracksBound = true;
           }
+
+          player.ready(() => {
+            const playPromise = player.play();
+
+            if (playPromise !== undefined) {
+              playPromise.catch((error) => {
+                console.log('Playback failed:', error);
+              });
+            }
+          });
+        },
+        startPlayback(selectedSource) {
+          this.syncPlaybackState(PlayState.STARTING);
+
+          if (!player) {
+            this.playerOptions = this.buildPlayerOptions(selectedSource);
+            player = videojs(this.$refs.videoPlayer, this.playerOptions);
+            this.bindPlayerEvents();
+            return;
+          }
+
+          this.playerOptions = this.buildPlayerOptions(selectedSource);
+          player.ceeblue().replaceOptions(this.playerOptions.plugins.ceeblue);
+          player.ceeblue().setSource(0);
         },
         stopPlayback() {
           console.log('StopPlayback');
-          player.pause();
-          player.reset();
-          player = null;
+          if (!player) {
+            return;
+          }
+
+          player.ceeblue().stop();
           this.dataMessages = '';
-          this.source = '';
-          this.quality = '';
-          this.playState = PlayState.STOPPED;
+          this.syncPlaybackState(PlayState.STOPPED);
         },
         changeSource(e) {
           if (this.source == e.target.text)
@@ -292,7 +375,7 @@
           if (!player) {
             this.startPlayback(e.target.text);
           } else {
-            player.sourceController().sourceType = e.target.text;
+            player.ceeblue().setSource({ protocol: e.target.text });
           }
         },
         play() {

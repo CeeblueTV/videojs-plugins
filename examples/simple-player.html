@@ -14,23 +14,27 @@
       <video id=video-player width=960 height=540 class="video-js vjs-default-skin" controls autoplay muted></video>
     </div>
     <script type="module">
-    // Replace the source url with host and stream name from query string
+    // Configure the player from the URL query string.
+    // Example:
+    // ?endPoint=fly.live.ceeblue.tv&streamName=my-stream&accessToken=my-token
     const url = new URL(window.location.href);
     const connectParams = {
-      endPoint: url.searchParams.get("host"),
-      streamName: url.searchParams.get("stream"),
-      accessToken: url.searchParams.get("accesstoken") || url.searchParams.get("token")
+      endPoint: url.searchParams.get("endPoint") || url.searchParams.get("host"),
+      streamName: url.searchParams.get("streamName") || url.searchParams.get("stream"),
+      accessToken: url.searchParams.get("accessToken") || url.searchParams.get("accesstoken") || url.searchParams.get("token")
     };
     if (!connectParams.endPoint || !connectParams.streamName) {
-      throw new Error("host and stream parameters are required");
+      throw new Error("endPoint and streamName parameters are required");
     }
 
     // Initialize the video player
     const player = videojs("video-player", {
       plugins: {
-        sourceController: { connectParams },
-        qualityButton: {}
-      }
+        ceeblue: {
+          ...connectParams,
+          enableQualityOptions: true,
+        },
+      },
     });
     </script>
   </body>
