@@ -36,10 +36,13 @@ export class WRTSTracksController {
   private readonly _wrtsPlayer: WRTSPlayer;
   private readonly _qualities: QualityLevelList & ArrayLike<QualityLevel>;
   private readonly _enableMap: Map<number, boolean>;
+  private readonly _messageTrackIds = new Set<number>();
+  private readonly _selectedSubtitleTrackIds = new Set<number>();
   private _videoTrack: number | undefined;
   private _audioTracks?: AudioTrack[];
   private _timeoutChange: ReturnType<typeof setTimeout> | null;
-  private readonly _textTracks = new Map<number, videojs.TextTrack>();
+  private readonly _subtitleTextTracks = new Map<number, videojs.TextTrack>();
+  private readonly _metadataTextTracks = new Map<number, videojs.TextTrack>();
   private readonly _remoteTextTracks = new Map<number, HTMLTrackElement>();
 
   constructor(wrtsSource: WRTSSource) {
@@ -73,6 +76,7 @@ export class WRTSTracksController {
     }
 
     this._reset();
+    this._messageTrackIds.clear();
 
     // @ts-expect-error - audioTracks is not typed.
     this._audioTracks?.addTrack(new videojs.AudioTrack({
@@ -129,22 +133,26 @@ export class WRTSTracksController {
         break;
       }
       case DATA_TRACK_TYPE: {
-        if (track.codec !== 'SUBTITLE') {
-          videojs.log.debug('Unsupported data track codec', track.codec);
-          break;
-        }
+        const isSubtitle = track.codec === 'SUBTITLE';
+        const label = track.language ? `${track.language}` : `#${trackId}`;
         const remoteTrack = this._player.addRemoteTextTrack({
-          kind: 'subtitles',
-          label: track.language ? `${track.language}` : `#${trackId}`,
+          kind: isSubtitle ? 'subtitles' : 'metadata',
+          label: isSubtitle ? label : `${track.codec} ${label}`,
           language: track.language ?? '',
           default: false
         }, true);
         const textTrack = remoteTrack.track;
 
         if (textTrack) {
-          textTrack.mode = 'disabled';
+          if (isSubtitle) {
+            textTrack.mode = 'disabled';
+            this._subtitleTextTracks.set(trackId, textTrack);
+          } else {
+            textTrack.mode = 'hidden';
+            this._messageTrackIds.add(trackId);
+            this._metadataTextTracks.set(trackId, textTrack);
+          }
           this._remoteTextTracks.set(trackId, remoteTrack);
-          this._textTracks.set(trackId, textTrack);
         } else {
           videojs.log.warn('Remote text track was created without a TextTrack');
         }
@@ -181,7 +189,7 @@ export class WRTSTracksController {
   }
 
   private _handleDataEvent(trackId: number, _: number, duration: number, data: Uint8Array): void {
-    const track = this._textTracks.get(trackId);
+    const track = this._subtitleTextTracks.get(trackId) || this._metadataTextTracks.get(trackId);
 
     if (!track) {
       return;
@@ -203,18 +211,20 @@ export class WRTSTracksController {
   }
 
   private _textTrackChange() {
-    const selectedTrackIds = new Set<number>();
+    const selectedTrackIds = new Set<number>(this._messageTrackIds);
 
-    for (const [trackId, textTrack] of this._textTracks.entries()) {
+    this._selectedSubtitleTrackIds.clear();
+    for (const [trackId, textTrack] of this._subtitleTextTracks.entries()) {
       if (textTrack.mode === 'showing') {
+        this._selectedSubtitleTrackIds.add(trackId);
         selectedTrackIds.add(trackId);
       }
     }
 
-    const selectedText = Array.from(selectedTrackIds).join(', ');
+    const selectedText = Array.from(this._selectedSubtitleTrackIds).join(', ');
     const currentText = Array.from(this._wrtsPlayer.dataTrack ?? []).join(', ');
 
-    if (selectedText === currentText) {
+    if (Array.from(selectedTrackIds).join(', ') === currentText) {
       return;
     }
 
@@ -238,8 +248,8 @@ export class WRTSTracksController {
       }
     }
 
-    for (const [trackId, textTrack] of this._textTracks.entries()) {
-      textTrack.mode = dataTrack.has(trackId) ? 'showing' : 'disabled';
+    for (const [trackId, textTrack] of this._subtitleTextTracks.entries()) {
+      textTrack.mode = this._selectedSubtitleTrackIds.has(trackId) && dataTrack.has(trackId) ? 'showing' : 'disabled';
     }
 
     if (this._videoTrack === videoTrack) {
@@ -328,6 +338,8 @@ export class WRTSTracksController {
       this._qualities.removeQualityLevel(quality);
     }
     this._enableMap.clear();
+    this._messageTrackIds.clear();
+    this._selectedSubtitleTrackIds.clear();
 
     if (this._audioTracks) {
       // @ts-expect-error - audioTracks is not typed.
@@ -346,7 +358,8 @@ export class WRTSTracksController {
       for (const [id, remoteTrack] of this._remoteTextTracks.entries()) {
         this._player.removeRemoteTextTrack(remoteTrack);
         this._remoteTextTracks.delete(id);
-        this._textTracks.delete(id);
+        this._subtitleTextTracks.delete(id);
+        this._metadataTextTracks.delete(id);
       }
     }
   }
