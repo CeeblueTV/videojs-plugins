@@ -1,6 +1,10 @@
 import type { CMCD, CMCDMode } from '@ceeblue/wrts-client';
 
-export const protocols = ['webrtc', 'wrts', 'llhls', 'hls', 'dash'] as const;
+/**
+ * Protocols list supported by Ceeblue sources.
+ * The order determines the priority of the protocols.
+ */
+export const protocols = ['wrts', 'webrtc', 'llhls', 'hls', 'dash'] as const;
 
 type protocol = typeof protocols[number];
 
@@ -94,7 +98,7 @@ export type CeeblueCloudSource = {
    * The list of protocols to use.
    * Protocol priority is determined by the order of the protocols in the array.
    *
-   * @default ['webrtc', 'wrts', 'llhls', 'hls', 'dash']
+   * @default ['wrts', 'webrtc', 'llhls', 'hls', 'dash']
    */
   protocols?: protocol[];
   /**

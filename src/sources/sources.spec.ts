@@ -10,7 +10,7 @@ import {
 describe('sources', () => {
   describe('protocols', () => {
     it('should contain all supported protocols', () => {
-      expect(protocols).toEqual(['webrtc', 'wrts', 'llhls', 'hls', 'dash']);
+      expect(protocols).toEqual(['wrts', 'webrtc', 'llhls', 'hls', 'dash']);
     });
   });
 
@@ -74,10 +74,10 @@ describe('sources', () => {
 
       const result = expandSourcesToVideoJSSources(source);
 
-      // webrtc, wrts, llhls, hls, dash.
+      // wrts, webrtc, llhls, hls, dash.
       expect(result).toHaveLength(5);
-      expect(result[0]?.sourceType).toBe('webrtc');
-      expect(result[1]?.sourceType).toBe('wrts');
+      expect(result[0]?.sourceType).toBe('wrts');
+      expect(result[1]?.sourceType).toBe('webrtc');
       expect(result[2]?.sourceType).toBe('llhls');
       expect(result[3]?.sourceType).toBe('hls');
       expect(result[4]?.sourceType).toBe('dash');

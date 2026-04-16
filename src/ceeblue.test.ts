@@ -25,10 +25,13 @@ describe('CeeblueVideoJSPlugin', () => {
   beforeEach(() => {
     videoElement = document.createElement('video');
     videoElement.id = 'test-video';
+    videoElement.muted = true;
+    videoElement.defaultMuted = true;
     document.body.appendChild(videoElement);
 
     player = videojs(videoElement, {
       autoplay: false,
+      muted: true,
       controls: true,
       responsive: true,
       fluid: true,
@@ -38,6 +41,7 @@ describe('CeeblueVideoJSPlugin', () => {
       }
     }) as PlayerWithCeeblue;
 
+    player.muted(true);
     plugin = player.ceeblue();
   });
 
@@ -83,14 +87,16 @@ describe('CeeblueVideoJSPlugin', () => {
   });
 
   it('should handle source switching by protocol', async () => {
+    const sourceChanged = new Promise<void>((resolve) => {
+      player.one('sourcechanged', () => {
+        resolve();
+      });
+    });
+
     plugin.setSource({ protocol: 'hls' });
 
     await Promise.race([
-      new Promise<void>((resolve) => {
-        player.on('sourcechanged', () => {
-          resolve();
-        });
-      }),
+      sourceChanged,
       new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Source switch timeout')), 5000);
       })

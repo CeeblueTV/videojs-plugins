@@ -94,6 +94,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
   private _maxRetries: number = 3;
   private _gracePeriod: number = 2000;
   private _retryTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _qualityUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
   private _suspendFallback = false;
 
   /**
@@ -162,6 +163,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
    */
   private async _setSource(source: VideojsSourceObject) {
     this._suspendFallback = true;
+    const shouldResumePlayback = !this._player.paused() || !!this._player.autoplay();
 
     try {
       // Pause the player
@@ -170,15 +172,17 @@ export class CeeblueVideoJSPlugin extends Plugin {
       // Reset the player state
       this._player.reset();
 
-      // Set the new source
       this._player.src(source);
 
       // Handle source change event
       this._handleSourceChanged(source);
 
       // Try to play the new source
-      await this._player.play();
-    } catch {
+      if (source.sourceType !== 'wrts' && shouldResumePlayback) {
+        await this._player.play();
+      }
+    } catch (error) {
+      videojs.log('Failed to play source', source, error);
       // If play fails, try the next source after grace period
       if (this._options.autoFallback) {
         this._scheduleRetry();
@@ -249,8 +253,18 @@ export class CeeblueVideoJSPlugin extends Plugin {
       return;
     }
 
+    if (this._qualityUpdateTimeout) {
+      clearTimeout(this._qualityUpdateTimeout);
+    }
+
     // Delay slightly so VHS/WebRTC quality levels have time to populate.
-    setTimeout(() => {
+    this._qualityUpdateTimeout = setTimeout(() => {
+      this._qualityUpdateTimeout = null;
+
+      if (this._player.isDisposed()) {
+        return;
+      }
+
       this._player.qualityButton?.().update();
     }, 500);
   }
@@ -369,6 +383,9 @@ export class CeeblueVideoJSPlugin extends Plugin {
   override dispose() {
     if (this._retryTimeout) {
       clearTimeout(this._retryTimeout);
+    }
+    if (this._qualityUpdateTimeout) {
+      clearTimeout(this._qualityUpdateTimeout);
     }
     super.dispose();
   }
