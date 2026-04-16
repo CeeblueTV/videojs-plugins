@@ -56,6 +56,7 @@ describe('CeeblueVideoJSPlugin', () => {
 
   it('should have correct protocols', () => {
     expect(CeeblueVideoJSPlugin.protocols).toContain('webrtc');
+    expect(CeeblueVideoJSPlugin.protocols).toContain('wrts');
     expect(CeeblueVideoJSPlugin.protocols).toContain('llhls');
     expect(CeeblueVideoJSPlugin.protocols).toContain('dash');
     expect(CeeblueVideoJSPlugin.protocols).toContain('hls');

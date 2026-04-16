@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>WebRTS Playback demo</title>
+    <link href="https://vjs.zencdn.net/8.20.0/video-js.css" rel="stylesheet">
+    <link href="../dist/videojs-plugins.css" rel="stylesheet">
+  </head>
+  <body>
+    <script src="https://vjs.zencdn.net/8.20.0/video.min.js"></script>
+    <script src="../dist/videojs-plugins.js"></script>
+    <div id="video_container">
+      <video id=video-player width=960 height=540 class="video-js vjs-default-skin" controls autoplay muted>
+        <!-- 
+          The following src is a sample URL that will be replaced with "host" and "stream" query parameters
+          You can also simply set the source URL directly in the HTML if you don't want to use query parameters
+        -->
+        <source src="https://host/wrts/streamName/index.json" type="application/json">
+      </video>
+    </div>
+    <script>
+    // Replace the source url with host and stream name from query string
+    const url = new URL(window.location.href);
+    const host = url.searchParams.get("host");
+    const stream = url.searchParams.get("stream");
+    const accessToken = url.searchParams.get("accesstoken") || url.searchParams.get("token");
+    if (host && stream) {
+      let source = "https://" + host + "/wrts/" + stream + "/index.json";
+
+      if (accessToken) {
+        source += "?id=" + accessToken;
+      }
+      document.getElementById("video-player").getElementsByTagName("source")[0].src = source;
+    } else {
+      throw new Error("host and stream parameters are required");
+    }
+
+    // Initialize the video player
+    const player = videojs("video-player");
+
+    player.qualityButton();
+    </script>
+  </body>
+</html>

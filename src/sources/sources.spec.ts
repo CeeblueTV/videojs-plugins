@@ -10,7 +10,7 @@ import {
 describe('sources', () => {
   describe('protocols', () => {
     it('should contain all supported protocols', () => {
-      expect(protocols).toEqual(['webrtc', 'llhls', 'hls', 'dash']);
+      expect(protocols).toEqual(['webrtc', 'wrts', 'llhls', 'hls', 'dash']);
     });
   });
 
@@ -34,6 +34,15 @@ describe('sources', () => {
       expect(result).toEqual({
         type: 'application/sdp',
         sourceType: 'webrtc'
+      });
+    });
+
+    it('should detect WRTS URLs', () => {
+      const result = determineSourceTypeFromURL('https://example.com/wrts/stream/index.json');
+
+      expect(result).toEqual({
+        type: 'application/json',
+        sourceType: 'wrts'
       });
     });
 
@@ -65,12 +74,13 @@ describe('sources', () => {
 
       const result = expandSourcesToVideoJSSources(source);
 
-      // webrtc, llhls, hls, dash.
-      expect(result).toHaveLength(4);
+      // webrtc, wrts, llhls, hls, dash.
+      expect(result).toHaveLength(5);
       expect(result[0]?.sourceType).toBe('webrtc');
-      expect(result[1]?.sourceType).toBe('llhls');
-      expect(result[2]?.sourceType).toBe('hls');
-      expect(result[3]?.sourceType).toBe('dash');
+      expect(result[1]?.sourceType).toBe('wrts');
+      expect(result[2]?.sourceType).toBe('llhls');
+      expect(result[3]?.sourceType).toBe('hls');
+      expect(result[4]?.sourceType).toBe('dash');
     });
 
     it('should expand single Cloud source with specific protocols', () => {

@@ -103,6 +103,52 @@
           </div>
         </div>
 
+        <div class="form-row" v-if="isWrtsSelected()">
+          <div class="form-group col-12 col-md-4">
+            <div class="form-check mt-2">
+              <input class="form-check-input" id="wrts-frame-skipping" type="checkbox"
+                v-model="wrtsAdaptiveFrameSkipping"
+                v-on:change="applyWrtsRuntimeSettings">
+              <label class="form-check-label" for="wrts-frame-skipping">
+                Adaptive Frame-Skipping
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group col-12 col-md-4">
+            <select class="custom-select"
+              v-model="wrtsNetworkProfile"
+              v-on:change="applyWrtsNetworkProfile"
+              title="WRTS network profile">
+              <option v-bind:value="option.value" v-for="option in wrtsNetworkProfiles">
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+
+          <div class="form-group col-6 col-md-2">
+            <input class="form-control"
+              placeholder="Buffer min"
+              type="number"
+              min="0"
+              step="100"
+              v-model="wrtsBufferLimitLow"
+              v-on:change="applyWrtsRuntimeSettings"
+              title="WRTS low buffer threshold (ms)">
+          </div>
+
+          <div class="form-group col-6 col-md-2">
+            <input class="form-control"
+              placeholder="Buffer max"
+              type="number"
+              min="0"
+              step="100"
+              v-model="wrtsBufferLimitHigh"
+              v-on:change="applyWrtsRuntimeSettings"
+              title="WRTS high buffer threshold (ms)">
+          </div>
+        </div>
+
         <div class="d-flex justify-content-center" v-cloak>
           <button class="btn" type="button"
             v-bind:class="{ 'btn-danger': isPlaying(), 'btn-success': isStopped(), 'btn-secondary': isStarting() }"
@@ -158,7 +204,18 @@
           connectorType: 'WebSocket (WS)',
           sources: Ceeblue.protocols,
           source: '',
+          selectedSource: '',
           playerOptions: {},
+          wrtsAdaptiveFrameSkipping: true,
+          wrtsNetworkProfiles: [
+            { value: 'custom', label: 'Network profile: Custom' },
+            { value: 'low-latency', label: 'Network profile: Low latency', bufferLimitLow: 500, bufferLimitHigh: 2000 },
+            { value: 'balanced', label: 'Network profile: Balanced', bufferLimitLow: 1000, bufferLimitHigh: 5000 },
+            { value: 'resilient', label: 'Network profile: Resilient', bufferLimitLow: 2500, bufferLimitHigh: 10000 },
+          ],
+          wrtsNetworkProfile: 'balanced',
+          wrtsBufferLimitLow: '1000',
+          wrtsBufferLimitHigh: '5000',
 
           dataMessages: '',
           quality: '',
@@ -177,7 +234,14 @@
         this.videobutton = options.videobutton != false;
         this.retryCount = options.retryCount;
         this.auto = options.auto !== false;
+        this.selectedSource = options.protocol || '';
         this.connectorType = host && host.toLowerCase().startsWith('http')? this.connectorTypes[1] : this.connectorTypes[0];
+        this.wrtsAdaptiveFrameSkipping = options.adaptiveFrameSkipping !== false;
+        this.wrtsNetworkProfile = options.wrtsProfile || 'balanced';
+        this.wrtsBufferLimitLow = options.bufferLimitLow || '1000';
+        this.wrtsBufferLimitHigh = options.bufferLimitHigh || '5000';
+
+        this.applyWrtsNetworkProfile();
       },
       methods: {
         buildProtocols(selectedSource) {
@@ -200,6 +264,23 @@
           }
 
           return query;
+        },
+        buildWrtsSettings() {
+          const settings = {
+            reliable: !this.wrtsAdaptiveFrameSkipping
+          };
+          const bufferLimitLow = Number.parseInt(this.wrtsBufferLimitLow, 10);
+          const bufferLimitHigh = Number.parseInt(this.wrtsBufferLimitHigh, 10);
+
+          if (!Number.isNaN(bufferLimitLow)) {
+            settings.bufferLimitLow = bufferLimitLow;
+          }
+
+          if (!Number.isNaN(bufferLimitHigh)) {
+            settings.bufferLimitHigh = bufferLimitHigh;
+          }
+
+          return settings;
         },
         buildPlayerOptions(selectedSource) {
           const signaling = this.connectorType === this.connectorTypes[1] ? 'whip' : 'ceeblue-ws';
@@ -226,16 +307,29 @@
                 settings: {
                   webrtc: {
                     signaling,
-                  }
+                  },
+                  wrts: this.buildWrtsSettings()
                 }
               }
             }
           };
         },
+        getCurrentWrtsSource() {
+          if (!player) {
+            return null;
+          }
+
+          const tech = player.tech_ || (typeof player.tech === 'function' ? player.tech(true) : null);
+
+          return tech?.wrts || null;
+        },
         getCurrentProtocol() {
           const plugin = player?.ceeblue?.();
 
           return plugin?.currentSource?.sourceType || '';
+        },
+        isWrtsSelected() {
+          return (this.source || this.selectedSource) === 'wrts';
         },
         syncPlaybackState(nextState) {
           this.playState = nextState;
@@ -274,6 +368,7 @@
             console.log('sourcechanged', source);
             this.dataMessages = '';
             this.source = source?.sourceType || this.getCurrentProtocol();
+            this.selectedSource = this.source || this.selectedSource;
             this.updateQualityFromLevels();
           });
 
@@ -342,18 +437,56 @@
           });
         },
         startPlayback(selectedSource) {
+          const nextSource = selectedSource || this.selectedSource || void 0;
+
+          if (nextSource) {
+            this.selectedSource = nextSource;
+          }
+
           this.syncPlaybackState(PlayState.STARTING);
 
           if (!player) {
-            this.playerOptions = this.buildPlayerOptions(selectedSource);
+            this.playerOptions = this.buildPlayerOptions(nextSource);
             player = videojs(this.$refs.videoPlayer, this.playerOptions);
             this.bindPlayerEvents();
             return;
           }
 
-          this.playerOptions = this.buildPlayerOptions(selectedSource);
+          this.playerOptions = this.buildPlayerOptions(nextSource);
           player.ceeblue().replaceOptions(this.playerOptions.plugins.ceeblue);
           player.ceeblue().setSource(0);
+        },
+        applyWrtsNetworkProfile() {
+          const profile = this.wrtsNetworkProfiles.find((entry) => entry.value === this.wrtsNetworkProfile);
+
+          if (!profile || profile.value === 'custom') {
+            this.applyWrtsRuntimeSettings();
+            return;
+          }
+
+          this.wrtsBufferLimitLow = profile.bufferLimitLow.toFixed();
+          this.wrtsBufferLimitHigh = profile.bufferLimitHigh.toFixed();
+          this.applyWrtsRuntimeSettings();
+        },
+        applyWrtsRuntimeSettings() {
+          const wrtsSource = this.getCurrentWrtsSource();
+
+          if (!wrtsSource) {
+            return;
+          }
+
+          const bufferLimitLow = Number.parseInt(this.wrtsBufferLimitLow, 10);
+          const bufferLimitHigh = Number.parseInt(this.wrtsBufferLimitHigh, 10);
+
+          if (!Number.isNaN(bufferLimitLow)) {
+            wrtsSource.bufferLimitLow = bufferLimitLow;
+          }
+
+          if (!Number.isNaN(bufferLimitHigh)) {
+            wrtsSource.bufferLimitHigh = bufferLimitHigh;
+          }
+
+          wrtsSource.reliable = !this.wrtsAdaptiveFrameSkipping;
         },
         stopPlayback() {
           console.log('StopPlayback');
@@ -366,6 +499,7 @@
           this.syncPlaybackState(PlayState.STOPPED);
         },
         changeSource(e) {
+          this.selectedSource = e.target.text;
           if (this.source == e.target.text)
             return;
           if (!player) {

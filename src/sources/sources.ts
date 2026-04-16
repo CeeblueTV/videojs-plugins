@@ -1,4 +1,6 @@
-export const protocols = ['webrtc', 'llhls', 'hls', 'dash'] as const;
+import type { CMCD, CMCDMode } from '@ceeblue/wrts-client';
+
+export const protocols = ['webrtc', 'wrts', 'llhls', 'hls', 'dash'] as const;
 
 type protocol = typeof protocols[number];
 
@@ -30,11 +32,45 @@ export type CeeblueWebRTCSettings = {
   iceServers?: RTCIceServer[];
 }
 
+export type CeeblueWRTSCMCD = CMCD;
+export type CeeblueWRTSCMCDMode = CMCDMode;
+
+/**
+ * WebRTS source settings.
+ */
+export type CeeblueWRTSSettings = {
+  /**
+   * Low buffer threshold in milliseconds.
+   */
+  bufferLimitLow?: number;
+  /**
+   * High buffer threshold in milliseconds.
+   */
+  bufferLimitHigh?: number;
+  /**
+   * Reliable playback disables adaptive frame-skipping.
+   */
+  reliable?: boolean;
+  /**
+   * CMCD verbosity.
+   */
+  cmcd?: CeeblueWRTSCMCD;
+  /**
+   * CMCD delivery mode.
+   */
+  cmcdMode?: CeeblueWRTSCMCDMode;
+  /**
+   * CMCD session identifier.
+   */
+  cmcdSid?: string;
+}
+
 /**
  * Ceeblue video sources settings.
  */
 type CeeblueSourcesSettings = {
   webrtc?: CeeblueWebRTCSettings;
+  wrts?: CeeblueWRTSSettings;
   hls?: CeeblueCloudHLSSettings;
 };
 
@@ -58,7 +94,7 @@ export type CeeblueCloudSource = {
    * The list of protocols to use.
    * Protocol priority is determined by the order of the protocols in the array.
    *
-   * @default ['webrtc', 'llhls', 'hls', 'dash']
+   * @default ['webrtc', 'wrts', 'llhls', 'hls', 'dash']
    */
   protocols?: protocol[];
   /**
@@ -94,9 +130,17 @@ export type CeeblueWebRTCURLSource = {
 } & CeeblueWebRTCSettings;
 
 /**
+ * WebRTS URL-based source.
+ */
+export type CeeblueWRTSURLSource = {
+  url: string;
+  type: 'wrts';
+} & CeeblueWRTSSettings;
+
+/**
  * SourceController Direct URL source.
  */
-export type CeeblueURLSource = CeeblueAutoURLSource | CeeblueHTTPURLSource | CeeblueWebRTCURLSource;
+export type CeeblueURLSource = CeeblueAutoURLSource | CeeblueHTTPURLSource | CeeblueWebRTCURLSource | CeeblueWRTSURLSource;
 
 /**
  * General SourceController settings.
@@ -132,7 +176,7 @@ export type CeeblueSources = CeeblueSettings & {
 export type VideojsHTTPSourceObject = {
   src: string;
   type?: string;
-  sourceType?: Exclude<protocol, 'webrtc'>;
+  sourceType?: Exclude<protocol, 'webrtc' | 'wrts'>;
 }
 
 // Ceeblue Cloud signaling MIME type for WebRTC over websocket.
@@ -147,10 +191,22 @@ export type VideojsWebRTCSourceObject = {
   data?: boolean | string;
 }
 
+export type VideojsWRTSSourceObject = {
+  src: string;
+  type?: 'application/json';
+  sourceType: 'wrts';
+  bufferLimitLow?: number;
+  bufferLimitHigh?: number;
+  reliable?: boolean;
+  cmcd?: CeeblueWRTSCMCD;
+  cmcdMode?: CeeblueWRTSCMCDMode;
+  cmcdSid?: string;
+}
+
 /**
  * Repesents a Videojs source object.
  */
-export type VideojsSourceObject = VideojsHTTPSourceObject | VideojsWebRTCSourceObject;
+export type VideojsSourceObject = VideojsHTTPSourceObject | VideojsWebRTCSourceObject | VideojsWRTSSourceObject;
 
 /**
  * Ceeblue sources options.
@@ -170,6 +226,9 @@ type CeeblueDeterminedSourceType = {
 } | {
   type: typeof ceeblueSignalingMimeType;
   sourceType: 'webrtc';
+} | {
+  type: 'application/json';
+  sourceType: 'wrts';
 } | {
   type: 'application/vnd.apple.mpegurl';
   sourceType: 'hls' | 'llhls';
@@ -204,6 +263,13 @@ export function determineSourceTypeFromURL(src: string): CeeblueDeterminedSource
       return {
         type: 'application/sdp',
         sourceType: 'webrtc'
+      };
+    }
+
+    if (application === 'wrts' && pathParts[pathParts.length - 1] === 'index.json') {
+      return {
+        type: 'application/json',
+        sourceType: 'wrts'
       };
     }
 
@@ -248,21 +314,58 @@ function getOptionSources(option: CeeblueSourcesOptions): CeeblueSource[] {
 
 function expandSourceToURLSource(source: CeeblueSource): VideojsSourceObject|VideojsSourceObject[] {
   if (isSourceControllerURLSource(source)) {
-    const urlSource: VideojsSourceObject = {
+    const urlSource: {
+      src: string;
+      type?: string;
+      sourceType?: protocol;
+      bufferLimitLow?: number;
+      bufferLimitHigh?: number;
+      reliable?: boolean;
+      cmcd?: CeeblueWRTSCMCD;
+      cmcdMode?: CeeblueWRTSCMCDMode;
+      cmcdSid?: string;
+    } = {
       src: source.url
     };
     const mimeType = (source as CeeblueAutoURLSource).mimeType;
-    const type = (source as CeeblueHTTPURLSource).type;
 
     if (mimeType) {
       urlSource.type = mimeType;
     }
 
-    if (type) {
-      urlSource.sourceType = type;
+    if ('type' in source && source.type) {
+      urlSource.sourceType = source.type;
+
+      if (source.type === 'wrts') {
+        const wrtsSource = source as CeeblueWRTSURLSource;
+
+        if (wrtsSource.bufferLimitLow !== undefined) {
+          urlSource.bufferLimitLow = wrtsSource.bufferLimitLow;
+        }
+
+        if (wrtsSource.bufferLimitHigh !== undefined) {
+          urlSource.bufferLimitHigh = wrtsSource.bufferLimitHigh;
+        }
+
+        if (wrtsSource.reliable !== undefined) {
+          urlSource.reliable = wrtsSource.reliable;
+        }
+
+        if (wrtsSource.cmcd !== undefined) {
+          urlSource.cmcd = wrtsSource.cmcd;
+        }
+
+        if (wrtsSource.cmcdMode !== undefined) {
+          urlSource.cmcdMode = wrtsSource.cmcdMode;
+        }
+
+        if (wrtsSource.cmcdSid !== undefined) {
+          urlSource.cmcdSid = wrtsSource.cmcdSid;
+        }
+      }
     }
 
-    return urlSource;
+    return urlSource as VideojsSourceObject;
   }
 
   if (!isSourceControllerCloudSource(source)) {
@@ -285,7 +388,13 @@ function buildCloudSource(source: CeeblueCloudSource): VideojsSourceObject[] {
     if (proto === 'webrtc') {
       sources.push(buildWebRTCSource(source));
 
-      continue
+      continue;
+    }
+
+    if (proto === 'wrts') {
+      sources.push(buildWRTSSource(source));
+
+      continue;
     }
 
     let urlPorotocol = '';
@@ -326,7 +435,9 @@ function buildCloudSource(source: CeeblueCloudSource): VideojsSourceObject[] {
       query.set('id', source.accessToken);
     }
 
-    url += `?${query.toString()}`;
+    if (query.toString().length > 0) {
+      url += `?${query.toString()}`;
+    }
 
     sources.push({
       src: url,
@@ -355,6 +466,52 @@ function buildWebRTCSource(source: CeeblueCloudSource): VideojsWebRTCSourceObjec
 
   if (source.settings?.webrtc?.iceServers) {
     sourceObject.iceServers = source.settings.webrtc.iceServers;
+  }
+
+  return sourceObject;
+}
+
+function buildWRTSSource(source: CeeblueCloudSource): VideojsWRTSSourceObject {
+  let url = `https://${source.endPoint}/wrts/${source.streamName}/index.json`;
+  const query = source.query || new URLSearchParams();
+  const wrtsSettings = source.settings?.wrts;
+
+  if (source.accessToken) {
+    query.set('id', source.accessToken);
+  }
+
+  if (query.toString().length > 0) {
+    url += `?${query.toString()}`;
+  }
+
+  const sourceObject: VideojsWRTSSourceObject = {
+    src: url,
+    type: 'application/json',
+    sourceType: 'wrts'
+  };
+
+  if (wrtsSettings?.bufferLimitLow !== undefined) {
+    sourceObject.bufferLimitLow = wrtsSettings.bufferLimitLow;
+  }
+
+  if (wrtsSettings?.bufferLimitHigh !== undefined) {
+    sourceObject.bufferLimitHigh = wrtsSettings.bufferLimitHigh;
+  }
+
+  if (wrtsSettings?.reliable !== undefined) {
+    sourceObject.reliable = wrtsSettings.reliable;
+  }
+
+  if (wrtsSettings?.cmcd !== undefined) {
+    sourceObject.cmcd = wrtsSettings.cmcd;
+  }
+
+  if (wrtsSettings?.cmcdMode !== undefined) {
+    sourceObject.cmcdMode = wrtsSettings.cmcdMode;
+  }
+
+  if (wrtsSettings?.cmcdSid !== undefined) {
+    sourceObject.cmcdSid = wrtsSettings.cmcdSid;
   }
 
   return sourceObject;

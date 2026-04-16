@@ -86,8 +86,20 @@ export class WebRTCSource {
       throw error;
     }
 
+    const videoElement = tech?.el?.() as HTMLVideoElement | null;
+
+    if (!videoElement) {
+      const error = new Error('Video element not found for WebRTC source');
+
+      this.player.error(error.message);
+      throw error;
+    }
+
     this._abortController = new AbortController();
-    this.webRTCPlayer = new WebRTCPlayer(source.src.startsWith('http') ? HTTPConnector : WSController);
+    this.webRTCPlayer = new WebRTCPlayer(
+      videoElement,
+      (source.src.startsWith('http') ? HTTPConnector : WSController) as ConstructorParameters<typeof WebRTCPlayer>[1]
+    );
     this.webRTCPlayer.on('start', this._handleStart.bind(this));
     this.webRTCPlayer.on('stop', this._handleStop.bind(this));
     this.webRTCPlayer.on('metadata', this._handleMetadata.bind(this));

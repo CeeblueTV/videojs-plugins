@@ -1,28 +1,48 @@
 import videojs from 'video.js';
 import { WebRTCSource } from './WebRTCSource';
+import { WRTSSource } from './WRTSSource';
 import type Tech from 'video.js/dist/types/tech/tech';
-import { ceeblueSignalingMimeType, determineSourceTypeFromURL, type VideojsSourceObject, type VideojsWebRTCSourceObject } from './sources';
+import { ceeblueSignalingMimeType, determineSourceTypeFromURL, type VideojsSourceObject, type VideojsWebRTCSourceObject, type VideojsWRTSSourceObject } from './sources';
 
 // Replaced with the plugin's version during the build process.
 const __libVersion__ = '?';
 
 /**
- * Ceeblue WebRTC source handler.
+ * Ceeblue source handler.
  */
-const WebRTCSourceHandler = {
+const SourceHandler = {
   name: 'ceeblue/videojs-plugins',
   VERSION: __libVersion__,
   canHandleSource(srcObj: VideojsSourceObject) {
     let type: string | void = srcObj.type;
 
-    if (!type) {
-      type = determineSourceTypeFromURL(srcObj.src)?.type;
+    if (!type || !srcObj.sourceType) {
+      const determined = determineSourceTypeFromURL(srcObj.src);
+
+      type = determined?.type;
+      if (determined?.sourceType) {
+        srcObj.sourceType = determined.sourceType;
+      }
     }
 
-    return WebRTCSourceHandler.canPlayType(type);
+    if (srcObj.sourceType === 'wrts') {
+      return 'probably';
+    }
+
+    return SourceHandler.canPlayType(type);
   },
-  handleSource(source: VideojsWebRTCSourceObject, tech: Tech, options: Record<string, unknown> = {}) {
+  handleSource(source: VideojsWebRTCSourceObject | VideojsWRTSSourceObject, tech: Tech, options: Record<string, unknown> = {}) {
     const localOptions = videojs.obj.merge(videojs.options, options);
+
+    if (source.sourceType === 'wrts') {
+      const wrtsSource = new WRTSSource(source, tech, localOptions);
+
+      // @ts-expect-error - wrts is not defined on Tech.
+      tech.wrts = wrtsSource;
+
+      return wrtsSource;
+    }
+
     const webrtcSource = new WebRTCSource(source, tech, localOptions);
 
     // @ts-expect-error - webrtc is not defined on Tech.
@@ -41,6 +61,7 @@ const WebRTCSourceHandler = {
     switch (type) {
     case ceeblueSignalingMimeType:
     case 'application/sdp':
+    case 'application/json':
       return 'probably';
     default:
       return '';
@@ -48,4 +69,4 @@ const WebRTCSourceHandler = {
   }
 };
 
-export default WebRTCSourceHandler;
+export default SourceHandler;

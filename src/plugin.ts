@@ -7,8 +7,9 @@
  */
 
 import videojs from 'video.js';
-import { VERSION } from '@ceeblue/webrtc-client';
-import WebRTCSourceHandler from './sources/webrtcSourceHandler';
+import { VERSION as WEBRTC_VERSION } from '@ceeblue/webrtc-client';
+import { VERSION as WRTS_VERSION } from '@ceeblue/wrts-client';
+import SourceHandler from './sources/sourceHandler';
 import { CeeblueVideoJSPlugin } from './ceeblue';
 import { QualityButtonPlugin } from './qualityButton';
 import './registerQualityLevels';
@@ -19,9 +20,9 @@ videojs.registerPlugin('qualityButton', QualityButtonPlugin);
 
 // register source handlers with the appropriate techs
 // @ts-expect-error - registerSourceHandler is always defined
-videojs.getTech('Html5')?.registerSourceHandler?.(WebRTCSourceHandler, 0);
+videojs.getTech('Html5')?.registerSourceHandler?.(SourceHandler, 0);
 
-videojs.log('ceeblue/videojs-plugins ' + WebRTCSourceHandler.VERSION + ' loaded (WebRTC client version ' + VERSION + ')');
+videojs.log('ceeblue/videojs-plugins ' + SourceHandler.VERSION + ' loaded (WebRTC client version ' + WEBRTC_VERSION + ', WRTS client version ' + WRTS_VERSION + ')');
 
 export default CeeblueVideoJSPlugin;
 export { QualityButtonPlugin };

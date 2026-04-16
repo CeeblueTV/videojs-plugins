@@ -50,9 +50,6 @@ export class WebRTCTracksController {
    * Controller for the tracks menus and the track selection.
    * Uses `webrtcHandler.source` to read the options.
    *
-   * audiobutton: True to enable the audio track menu button. Default: true
-   * data: True to listen to all data tracks (see https://docs.videojs.com/texttracklist#event:addtrack for usage). Default: true
-   *
    * @param {WebRTCSource} webrtcSource the WebRTCSource instance
    */
   constructor(webrtcSource: WebRTCSource) {
