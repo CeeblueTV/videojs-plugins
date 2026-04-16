@@ -28,6 +28,40 @@
       margin-bottom: 3em;
     }
 
+    .panel-tab__content {
+      min-height: 12rem;
+    }
+
+    .nav-tabs .nav-link {
+      color: #495057;
+    }
+
+    .nav-tabs .nav-link:not(.active) {
+      color: #495057;
+      background-color: transparent;
+      border-color: transparent;
+    }
+
+    .nav-tabs .nav-link:not(.active):hover,
+    .nav-tabs .nav-link:not(.active):focus {
+      color: #212529;
+      border-color: transparent;
+    }
+
+    .tab-badge {
+      margin-left: 0.35rem;
+    }
+
+    .messages-panel {
+      min-height: 12rem;
+      max-height: 18rem;
+      white-space: pre;
+      font-family: monospace;
+      font-size: 0.9rem;
+      overflow-x: auto;
+      overflow-y: auto;
+    }
+
     [v-cloak] {
       display: none;
     }
@@ -58,13 +92,6 @@
           <div class="card-body">
             <video ref="videoPlayer" class="video-js vjs-default-skin vjs-fluid" playsinline controls autoplay></video>
           </div>
-        </div>
-
-        <div class="form-row" v-if="dataMessages.length > 0" disabled>
-          <div class="col-12">
-            <h5>Timed Metadatas</h5>
-          </div>
-          <div class="form-group col-12 text-left border rounded overflow-auto" style="white-space: pre;">{{ dataMessages }}</div>
         </div>
 
         <div class="form-row">
@@ -157,6 +184,43 @@
                 v-if="isStarting()"></i></span>
           </button>
         </div>
+
+        <div class="card border-0 mt-4">
+          <div class="card-body px-0">
+            <ul class="nav nav-tabs">
+              <li class="nav-item">
+                <a class="nav-link" href="#"
+                  :class="{ active: bottomPanelTab === 'graph' }"
+                  v-on:click.stop.prevent="bottomPanelTab = 'graph'">
+                  Graph
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" href="#"
+                  :class="{ active: bottomPanelTab === 'messages' }"
+                  v-on:click.stop.prevent="bottomPanelTab = 'messages'">
+                  Messages
+                  <span class="badge badge-primary tab-badge" v-if="pendingMessageCount > 0">{{ pendingMessageCount }}</span>
+                </a>
+              </li>
+            </ul>
+
+            <div class="border border-top-0 rounded-bottom bg-white p-3 panel-tab__content">
+              <div v-show="bottomPanelTab === 'graph'">
+                <div class="text-muted" v-if="!hasMetrics">
+                  WRTS metrics will appear here once playback starts.
+                </div>
+                <ul class="list-group list-group-flush" ref="stats" v-show="hasMetrics"></ul>
+              </div>
+
+              <div v-show="bottomPanelTab === 'messages'">
+                <div class="messages-panel overflow-auto">
+                  {{ dataMessages || 'No messages yet.' }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -167,6 +231,7 @@
     import {
       Util,
       NetAddress,
+      UIMetrics,
     } from 'https://cdn.jsdelivr.net/npm/@ceeblue/web-utils@7.8.0/dist/web-utils.min.js';
     import { createApp } from 'https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.prod.js';
     import 'https://cdn.jsdelivr.net/npm/webrtc-adapter/out/adapter.js';
@@ -183,6 +248,7 @@
     // /!\ keep this outside of the app to avoid issues with vuejs proxying)
     let player = null; // the videojs Player
     let textTracksBound = false;
+    let metricsTimer = null;
 
     createApp({
       data() {
@@ -206,18 +272,24 @@
           source: '',
           selectedSource: '',
           playerOptions: {},
+          bottomPanelTab: 'graph',
           wrtsAdaptiveFrameSkipping: true,
           wrtsNetworkProfiles: [
-            { value: 'custom', label: 'Network profile: Custom' },
-            { value: 'low-latency', label: 'Network profile: Low latency', bufferLimitLow: 500, bufferLimitHigh: 2000 },
-            { value: 'balanced', label: 'Network profile: Balanced', bufferLimitLow: 1000, bufferLimitHigh: 5000 },
-            { value: 'resilient', label: 'Network profile: Resilient', bufferLimitLow: 2500, bufferLimitHigh: 10000 },
+            { value: '-manual-', label: 'Network profile: -manual-' },
+            { value: 'ideal', label: 'Network profile: ideal', bufferLimitLow: 200, bufferLimitHigh: 500 },
+            { value: 'normal', label: 'Network profile: normal', bufferLimitLow: 400, bufferLimitHigh: 800 },
+            { value: 'distant', label: 'Network profile: distant', bufferLimitLow: 1000, bufferLimitHigh: 2000 },
+            { value: 'unstable', label: 'Network profile: unstable', bufferLimitLow: 2000, bufferLimitHigh: 4000 },
           ],
-          wrtsNetworkProfile: 'balanced',
-          wrtsBufferLimitLow: '1000',
-          wrtsBufferLimitHigh: '5000',
+          wrtsNetworkProfile: 'normal',
+          wrtsBufferLimitLow: '400',
+          wrtsBufferLimitHigh: '800',
 
           dataMessages: '',
+          pendingMessageCount: 0,
+          hasMetrics: false,
+          stats: new Map(),
+          uiStats: null,
           quality: '',
         }
       },
@@ -237,13 +309,101 @@
         this.selectedSource = options.protocol || '';
         this.connectorType = host && host.toLowerCase().startsWith('http')? this.connectorTypes[1] : this.connectorTypes[0];
         this.wrtsAdaptiveFrameSkipping = options.adaptiveFrameSkipping !== false;
-        this.wrtsNetworkProfile = options.wrtsProfile || 'balanced';
-        this.wrtsBufferLimitLow = options.bufferLimitLow || '1000';
-        this.wrtsBufferLimitHigh = options.bufferLimitHigh || '5000';
+        this.wrtsNetworkProfile = options.wrtsProfile || 'normal';
+        this.wrtsBufferLimitLow = options.bufferLimitLow || '400';
+        this.wrtsBufferLimitHigh = options.bufferLimitHigh || '800';
 
         this.applyWrtsNetworkProfile();
       },
+      mounted() {
+        this.initializeStats();
+      },
       methods: {
+        initializeStats() {
+          this.stats = new Map();
+          this.stats.set('Bandwidth', []);
+          this.stats.set('Buffer', []);
+          this.stats.set('Latency', []);
+          this.stats.set('Playback rate', []);
+          this.stats.set('Playback speed', []);
+          this.stats.set('Video FPS', []);
+          this.stats.set('Track audio', []);
+          this.stats.set('Track video', []);
+          this.stats.set('Skipped audio', []);
+          this.stats.set('Skipped video', []);
+          this.stats.set('Stalls', []);
+          this.uiStats = new UIMetrics(this.$refs.stats);
+          this.startMetricsPolling();
+        },
+        startMetricsPolling() {
+          if (metricsTimer) {
+            clearInterval(metricsTimer);
+          }
+
+          metricsTimer = setInterval(() => {
+            this.updateMetrics();
+          }, 700);
+        },
+        updateMetrics() {
+          if (!this.uiStats) {
+            return;
+          }
+
+          const wrtsSource = this.getCurrentWrtsSource();
+          const wrtsPlayer = wrtsSource?.wrtsPlayer;
+
+          if (!wrtsPlayer?.running) {
+            return;
+          }
+
+          const stats = wrtsPlayer.computeStats();
+
+          this.hasMetrics = true;
+          this.pushStatValue('Bandwidth', Math.round((wrtsPlayer.recvByteRate || 0) * 8 / 1000) + 'kbps');
+          this.pushStatValue('Buffer', Math.round(stats.bufferAmount || 0) + 'ms');
+          this.pushStatValue('Latency', Math.round(stats.latency || 0) + 'ms');
+          this.pushStatValue('Playback rate', (stats.playbackRate || 0).toFixed(2));
+          this.pushStatValue('Playback speed', (stats.playbackSpeed || 0).toFixed(2));
+          this.pushStatValue('Video FPS', (stats.videoPerSecond || 0).toFixed(2));
+          this.pushStatValue('Track audio', Math.round(((stats.audioTrackBandwidth || 0) * 8) / 1000) + 'kbps');
+          this.pushStatValue('Track video', Math.round(((stats.videoTrackBandwidth || 0) * 8) / 1000) + 'kbps');
+          this.pushStatValue('Skipped audio', (((stats.skippedAudio || 0) / 1000).toFixed(1)) + 's');
+          this.pushStatValue('Skipped video', (((stats.skippedVideo || 0) / 1000).toFixed(1)) + 's');
+          this.pushStatValue('Stalls', String(stats.stallCount || 0));
+          this.uiStats.display(this.stats);
+        },
+        pushStatValue(name, value) {
+          const values = this.stats.get(name);
+
+          if (!values) {
+            return;
+          }
+
+          values.push(value);
+
+          if (values.length > 60) {
+            values.shift();
+          }
+        },
+        resetMetrics() {
+          this.hasMetrics = false;
+
+          for (const values of this.stats.values()) {
+            values.length = 0;
+          }
+
+          this.uiStats?.reset();
+        },
+        appendMessage(message) {
+          const currentLines = this.dataMessages ? this.dataMessages.split(/\r\n|\r|\n/) : [];
+          const nextLines = [...currentLines, message].filter(Boolean).slice(-20);
+
+          this.dataMessages = nextLines.join('\n');
+
+          if (this.bottomPanelTab !== 'messages') {
+            this.pendingMessageCount += 1;
+          }
+        },
         buildProtocols(selectedSource) {
           if (!selectedSource) {
             return [...this.sources];
@@ -366,7 +526,11 @@
             const source = event.details.source;
 
             console.log('sourcechanged', source);
-            this.dataMessages = '';
+            if (source) {
+              this.dataMessages = '';
+              this.pendingMessageCount = 0;
+              this.resetMetrics();
+            }
             this.source = source?.sourceType || this.getCurrentProtocol();
             this.selectedSource = this.source || this.selectedSource;
             this.updateQualityFromLevels();
@@ -409,7 +573,6 @@
 
           if (!textTracksBound) {
             player.textTracks().on('addtrack', (e) => {
-              console.log('New text track', e);
               const track = e.track;
 
               track.on('cuechange', () => {
@@ -417,16 +580,15 @@
                 if (!cue) {
                   return;
                 }
-                if (this.dataMessages.split(/\r\n|\r|\n/).length > 3) {
-                  this.dataMessages = this.dataMessages.substring(this.dataMessages.indexOf('\n') + 1);
-                }
-                this.dataMessages += '[' + cue.startTime.toFixed(3) + '] ' + cue.text + '\n';
+                const label = track.label ? '[' + track.label + ']' : '[' + cue.startTime.toFixed(3) + ']';
+
+                this.appendMessage(label + ' ' + cue.text);
               });
             });
             textTracksBound = true;
           }
 
-          player.ready(() => {
+          /*player.ready(() => {
             const playPromise = player.play();
 
             if (playPromise !== undefined) {
@@ -434,7 +596,7 @@
                 console.log('Playback failed:', error);
               });
             }
-          });
+          });*/
         },
         startPlayback(selectedSource) {
           const nextSource = selectedSource || this.selectedSource || void 0;
@@ -459,7 +621,7 @@
         applyWrtsNetworkProfile() {
           const profile = this.wrtsNetworkProfiles.find((entry) => entry.value === this.wrtsNetworkProfile);
 
-          if (!profile || profile.value === 'custom') {
+          if (!profile || profile.value === '-manual-') {
             this.applyWrtsRuntimeSettings();
             return;
           }
@@ -495,7 +657,6 @@
           }
 
           player.ceeblue().stop();
-          this.dataMessages = '';
           this.syncPlaybackState(PlayState.STOPPED);
         },
         changeSource(e) {
@@ -534,6 +695,13 @@
           return this.playState === PlayState.STOPPED;
         }
       },
+      watch: {
+        bottomPanelTab(nextTab) {
+          if (nextTab === 'messages') {
+            this.pendingMessageCount = 0;
+          }
+        }
+      }
     }).mount('#main');
     </script>
   </body>
