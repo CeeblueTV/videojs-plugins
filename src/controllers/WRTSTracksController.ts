@@ -5,20 +5,11 @@ import type AudioTrack from 'video.js/dist/types/tracks/audio-track';
 import type Player from 'video.js/dist/types/player';
 import type QualityLevel from 'videojs-contrib-quality-levels/dist/types/quality-level';
 import { WRTSSource } from '../sources/WRTSSource';
+import { bytesPerSecondToBitsPerSecond, readableByterate } from './bitrate';
 
 const DATA_TRACK_TYPE = 0;
 const AUDIO_TRACK_TYPE = 1;
 const VIDEO_TRACK_TYPE = 2;
-
-function readableByterate(bitrate: number): string {
-  if (bitrate === 0) {
-    return '';
-  }
-  const i = Math.floor(Math.log(bitrate) / Math.log(1000));
-  const sizes = ['bps', 'Kbps', 'Mbps', 'Gbps'];
-
-  return `${(bitrate / Math.pow(1000, i)).toFixed(1)} ${sizes[i]}`;
-}
 
 function textDecoderValue(data: Uint8Array): string {
   try {
@@ -93,11 +84,12 @@ export class WRTSTracksController {
     for (const [trackId, track] of metadata.tracks) {
       switch (track.type) {
       case VIDEO_TRACK_TYPE: {
+        const bitrate = bytesPerSecondToBitsPerSecond(track.bandwidth ?? 0);
         const representation = {
           id: trackId,
           width: track.resolution.width,
           height: track.resolution.height,
-          bandwidth: track.bandwidth,
+          bandwidth: bitrate,
           frameRate: track.rate,
           enabled: this._qualityEnabled(trackId)
         };
@@ -107,7 +99,7 @@ export class WRTSTracksController {
         break;
       }
       case AUDIO_TRACK_TYPE: {
-        const bitrate = track.bandwidth ?? 0;
+        const bitrate = bytesPerSecondToBitsPerSecond(track.bandwidth ?? 0);
         const audioTrack = new videojs.AudioTrack({
           id: trackId,
           kind: 'main',

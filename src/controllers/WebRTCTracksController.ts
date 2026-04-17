@@ -5,22 +5,7 @@ import type QualityLevelList from 'videojs-contrib-quality-levels/dist/types/qua
 import type AudioTrack from 'video.js/dist/types/tracks/audio-track';
 import type Player from 'video.js/dist/types/player';
 import type QualityLevel from 'videojs-contrib-quality-levels/dist/types/quality-level';
-
-/**
- * Convert a bitrate in bps to a human readable string.
- *
- * @param {number} bitrate The bitrate in bps
- * @return {string} the human readable string
- */
-function readableByterate(bitrate: number): string {
-  if (bitrate === 0) {
-    return '';
-  }
-  const i = Math.floor(Math.log(bitrate) / Math.log(1000));
-  const sizes = ['bps', 'Kbps', 'Mbps', 'Gbps'];
-
-  return `${(bitrate / Math.pow(1000, i)).toFixed(1)} ${sizes[i]}`;
-}
+import { bytesPerSecondToBitsPerSecond, readableByterate } from './bitrate';
 
 /**
  * The WebRTCTracksController, Implements VideoJS Quality Levels for Ceeblue's WebRTC sources.
@@ -126,14 +111,15 @@ export class WebRTCTracksController {
     for (const [trackId, track] of metadata.tracks) {
       switch (track.type) {
       case 'video': {
+        // @ts-expect-error - ebps is not typed.
+        const bitrate = bytesPerSecondToBitsPerSecond(track.ebps ?? track.bps ?? 0);
         // @ts-expect-error - efpks is not typed.
         const frameRate = track.efpks ? track.efpks : track.fpks;
         const representation = {
           id: trackId,
           width: track.width,
           height: track.height,
-          // @ts-expect-error - ebps is not typed.
-          bandwidth: track.ebps ? track.ebps : track.bps,
+          bandwidth: bitrate,
           frameRate: frameRate ? Math.floor(frameRate / 1000) : 0,
           // @ts-expect-error - qualityEnabled is not typed.
           enabled: this._qualityEnabled(trackId)
@@ -146,7 +132,7 @@ export class WebRTCTracksController {
       }
       case 'audio': {
         // @ts-expect-error - ebps is not typed.
-        const bitrate = track.ebps ?? track.bps ?? 0;
+        const bitrate = bytesPerSecondToBitsPerSecond(track.ebps ?? track.bps ?? 0);
         const audioTrack = new videojs.AudioTrack({
           id: trackId,
           kind: 'main',
