@@ -180,7 +180,7 @@ export class WRTSTracksController {
     }
   }
 
-  private _handleDataEvent(trackId: number, _: number, duration: number, data: Uint8Array): void {
+  private _handleDataEvent(trackId: number, time: number, duration: number, data: Uint8Array): void {
     const track = this._subtitleTextTracks.get(trackId) || this._metadataTextTracks.get(trackId);
 
     if (!track) {
@@ -188,10 +188,15 @@ export class WRTSTracksController {
     }
 
     const currentTime = this._player.tech_.currentTime();
+    // Ensure cues have a minimum duration to ensure they are displayed at least 1 second.
     const cueDuration = Math.max(duration / 1000, 1);
+    // If the cue time is in the past, set it to current time to trigger immediately.
+    const cueTime = Math.max(time / 1000, currentTime);
     const textTrack = track as videojs.TextTrack & { cues_?: TextTrackCueList & { [index: number]: TextTrackCue | undefined } };
 
-    textTrack.addCue(new VTTCue(currentTime, currentTime + cueDuration, textDecoderValue(data)));
+    videojs.log(`Adding cue to track ${trackId} at time ${cueTime} (duration=${duration}, currentTime=${currentTime}): ${textDecoderValue(data)}`);
+
+    textTrack.addCue(new VTTCue(cueTime, cueTime + cueDuration, textDecoderValue(data)));
 
     if (textTrack.cues_?.length && textTrack.cues_.length > 1) {
       const firstCue = textTrack.cues_[0];
