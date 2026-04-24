@@ -1,5 +1,5 @@
 import videojs from 'video.js';
-import { Player as WRTSPlayer, type CMCD, type CMCDMode, type Metadata } from '@ceeblue/wrts-client';
+import { Player as WRTSPlayer, type CMCD, type CMCDMode, type Metadata, type PlayerError } from '@ceeblue/wrts-client';
 import { WRTSTracksController } from '../controllers/WRTSTracksController';
 import type Tech from 'video.js/dist/types/tech/tech';
 import type Player from 'video.js/dist/types/player';
@@ -155,9 +155,9 @@ export class WRTSSource {
     this.player.trigger('play');
   }
 
-  _handleStop(error?: unknown) {
+  _handleStop(error?: PlayerError | undefined) {
     if (error) {
-      this.player.error('WRTS playback stopped');
+      this.player.error('WRTS playback stopped, error : ' + error.name);
       return;
     }
 
