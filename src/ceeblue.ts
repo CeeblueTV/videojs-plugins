@@ -12,6 +12,7 @@ const Plugin = videojs.getPlugin('plugin') as unknown as typeof PluginType;
 type PlayerWithQualityLevels = Player & {
   qualityLevels: () => QualityLevelList | undefined;
   qualityButton?: () => QualityButtonPlugin;
+  eme?: (options?: Record<string, unknown>) => void;
 };
 
 // Replaced with the plugin's version during the build process.
@@ -120,11 +121,22 @@ export class CeeblueVideoJSPlugin extends Plugin {
 
     this._sources = sources;
     this._currentSourceIndex = 0;
+    this._initializeEME(this._sources[0]);
     this._player.src(this._sources[0]);
 
     player.on('error', this._handleError.bind(this));
     player.on('ended', this._handleEnded.bind(this));
     player.on('loadedmetadata', this._handleLoadedMetadata.bind(this));
+
+    // Emit the initial source change after construction so external listeners
+    // registered right after player creation can still observe the first source.
+    setTimeout(() => {
+      if (this._player.isDisposed()) {
+        return;
+      }
+
+      this._handleSourceChanged(this._sources[this._currentSourceIndex]);
+    }, 0);
   }
 
   /**
@@ -172,10 +184,16 @@ export class CeeblueVideoJSPlugin extends Plugin {
       // Reset the player state
       this._player.reset();
 
+      this._initializeEME(source);
       this._player.src(source);
 
       // Handle source change event
       this._handleSourceChanged(source);
+
+      // Re-enable fallback before awaiting play(). WebRTC startup can keep the
+      // play promise pending during signaling/handshake, and we still want
+      // later error/ended events to trigger protocol fallback.
+      this._suspendFallback = false;
 
       // Try to play the new source
       if (source.sourceType !== 'wrts' && shouldResumePlayback) {
@@ -188,9 +206,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
         this._scheduleRetry();
       }
     } finally {
-      setTimeout(() => {
-        this._suspendFallback = false;
-      }, 0);
+      this._suspendFallback = false;
     }
   }
 
@@ -279,6 +295,16 @@ export class CeeblueVideoJSPlugin extends Plugin {
       type: 'sourcechanged',
       details: { source }
     });
+  }
+
+  private _initializeEME(source: VideojsSourceObject) {
+    if (!('keySystems' in source) || !source.keySystems) {
+      return;
+    }
+
+    if (typeof this._player.eme === 'function') {
+      this._player.eme();
+    }
   }
 
   /**

@@ -66,6 +66,14 @@ describe('sources', () => {
   });
 
   describe('expandSourcesToVideoJSSources', () => {
+    const keySystems = {
+      'com.widevine.alpha': 'https://widevine.example.com',
+      'com.apple.fps': {
+        certificateUri: 'https://fps.example.com/cert',
+        licenseUri: 'https://fps.example.com/license'
+      }
+    };
+
     it('should expand single Cloud source with default protocols', () => {
       const source: CeeblueCloudSource = {
         endPoint: 'example.com',
@@ -108,6 +116,89 @@ describe('sources', () => {
       expect(result).toHaveLength(1);
       expect(result[0]?.src).toBe(source.url);
       expect(result[0]?.type).toBe(source.mimeType);
+    });
+
+    it('should pass DRM keySystems through HTTP URL sources', () => {
+      const result = expandSourcesToVideoJSSources({
+        url: 'https://example.com/stream.mpd',
+        type: 'dash',
+        keySystems
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        src: 'https://example.com/stream.mpd',
+        sourceType: 'dash',
+        keySystems
+      });
+    });
+
+    it('should add DRM keySystems to Cloud HLS and DASH sources', () => {
+      const result = expandSourcesToVideoJSSources({
+        endPoint: 'example.com',
+        streamName: 'test-stream',
+        protocols: ['hls', 'dash'],
+        settings: {
+          hls: {
+            keySystems
+          },
+          dash: {
+            keySystems: {
+              'com.microsoft.playready': 'https://playready.example.com'
+            }
+          }
+        }
+      });
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({
+        sourceType: 'hls',
+        keySystems
+      });
+      expect(result[1]).toMatchObject({
+        sourceType: 'dash',
+        keySystems: {
+          'com.microsoft.playready': 'https://playready.example.com'
+        }
+      });
+    });
+
+    it('should merge top-level settings into Cloud sources', () => {
+      const result = expandSourcesToVideoJSSources({
+        settings: {
+          hls: {
+            keySystems
+          }
+        },
+        sources: [
+          {
+            endPoint: 'example.com',
+            streamName: 'stream-a',
+            protocols: ['hls']
+          },
+          {
+            endPoint: 'example.com',
+            streamName: 'stream-b',
+            protocols: ['hls'],
+            settings: {
+              hls: {
+                format: 'ts'
+              }
+            }
+          }
+        ]
+      });
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toMatchObject({
+        sourceType: 'hls',
+        keySystems
+      });
+      expect(result[1]).toMatchObject({
+        sourceType: 'hls',
+        keySystems
+      });
+      expect(result[1]?.src).toContain('/ts/stream-b/');
     });
   });
 });

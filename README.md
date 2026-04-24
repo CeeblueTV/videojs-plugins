@@ -225,6 +225,37 @@ To start the `SourceController` call the `start()` function with the `SourceType
     ]);
 ```
 
+### DRM for HLS and DASH
+
+For HLS, LL-HLS and DASH sources, DRM can be passed through with the same `keySystems` object accepted by `player.src(...)`.
+
+This works both on direct URL sources and in Ceeblue `settings`:
+
+```js
+player.ceeblue({
+  endPoint: '<endPoint>',
+  streamName: '<streamName>',
+  protocols: ['hls', 'dash'],
+  settings: {
+    hls: {
+      keySystems: {
+        'com.apple.fps': {
+          certificateUri: 'https://na-fps.ezdrm.com/demo/video/eleisure.cer',
+          licenseUri: 'https://fps.ezdrm.com/api/licenses/auth?pX=48EA94&assetid=c9e170a5-b3af-49d8-a8ad-fc2d90104744'
+        },
+        'com.widevine.alpha': 'https://widevine-dash.ezdrm.com/widevine-php/widevine-foreignkey.php?pX=B752A3'
+      }
+    },
+    dash: {
+      keySystems: {
+        'com.widevine.alpha': 'https://widevine-dash.ezdrm.com/widevine-php/widevine-foreignkey.php?pX=B752A3',
+        'com.microsoft.playready': 'https://playready.ezdrm.com/cency/preauth.aspx?pX=CAF350'
+      }
+    }
+  }
+});
+```
+
 ### Disabling QualityButton
 
 By default the SourceController creates a [QualityButton](#qualitybutton) for the current source but you can disable it in the player's options with the `qualityButton` option:

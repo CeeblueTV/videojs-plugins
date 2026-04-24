@@ -8,10 +8,25 @@ export const protocols = ['wrts', 'webrtc', 'llhls', 'hls', 'dash'] as const;
 
 type protocol = typeof protocols[number];
 
+export type CeeblueDRMKeySystemConfiguration = {
+  licenseUri?: string;
+  certificateUri?: string;
+  [key: string]: unknown;
+};
+
+export type CeeblueDRMKeySystems = Record<string, string | CeeblueDRMKeySystemConfiguration>;
+
+type CeeblueHTTPDRMSettings = {
+  /**
+   * DRM configuration passed through to Video.js HTTP sources.
+   */
+  keySystems?: CeeblueDRMKeySystems;
+};
+
 /**
  * Ceeblue Cloud HLS source settings.
  */
-export type CeeblueCloudHLSSettings = {
+export type CeeblueCloudHLSSettings = CeeblueHTTPDRMSettings & {
   /**
    * HLS format.
    *
@@ -19,6 +34,11 @@ export type CeeblueCloudHLSSettings = {
    */
   format?: 'cmaf' | 'ts';
 }
+
+/**
+ * Ceeblue Cloud DASH source settings.
+ */
+export type CeeblueCloudDASHSettings = CeeblueHTTPDRMSettings;
 
 /**
  * WebRTC Source settings.
@@ -72,10 +92,11 @@ export type CeeblueWRTSSettings = {
 /**
  * Ceeblue video sources settings.
  */
-type CeeblueSourcesSettings = {
+export type CeeblueSourcesSettings = {
   webrtc?: CeeblueWebRTCSettings;
   wrts?: CeeblueWRTSSettings;
   hls?: CeeblueCloudHLSSettings;
+  dash?: CeeblueCloudDASHSettings;
 };
 
 /**
@@ -123,7 +144,7 @@ export type CeeblueAutoURLSource = {
 export type CeeblueHTTPURLSource = {
   url: string;
   type: 'hls' | 'llhls' | 'dash';
-}
+} & CeeblueHTTPDRMSettings;
 
 /**
  * WebRTC URL-based source.
@@ -181,6 +202,7 @@ export type VideojsHTTPSourceObject = {
   src: string;
   type?: string;
   sourceType?: Exclude<protocol, 'webrtc' | 'wrts'>;
+  keySystems?: CeeblueDRMKeySystems;
 }
 
 // Ceeblue Cloud signaling MIME type for WebRTC over websocket.
@@ -221,7 +243,12 @@ export type CeeblueSourcesOptions = CeeblueSingleSource | CeeblueSources;
  * Expand Ceeblue plugin options to Videojs sources.
  */
 export function expandSourcesToVideoJSSources(option: CeeblueSourcesOptions) {
-  return getOptionSources(option).map(expandSourceToURLSource).flat();
+  const globalSettings = isSourceControllerSingleSource(option) ? undefined : option.settings;
+
+  return getOptionSources(option)
+    .map(source => mergeSourceWithGlobalSettings(source, globalSettings))
+    .map(expandSourceToURLSource)
+    .flat();
 }
 
 type CeeblueDeterminedSourceType = {
@@ -322,6 +349,7 @@ function expandSourceToURLSource(source: CeeblueSource): VideojsSourceObject|Vid
       src: string;
       type?: string;
       sourceType?: protocol;
+      keySystems?: CeeblueDRMKeySystems;
       bufferLimitLow?: number;
       bufferLimitHigh?: number;
       reliable?: boolean;
@@ -339,6 +367,10 @@ function expandSourceToURLSource(source: CeeblueSource): VideojsSourceObject|Vid
 
     if ('type' in source && source.type) {
       urlSource.sourceType = source.type;
+
+      if ((source.type === 'hls' || source.type === 'llhls' || source.type === 'dash') && source.keySystems !== undefined) {
+        urlSource.keySystems = source.keySystems;
+      }
 
       if (source.type === 'wrts') {
         const wrtsSource = source as CeeblueWRTSURLSource;
@@ -443,11 +475,19 @@ function buildCloudSource(source: CeeblueCloudSource): VideojsSourceObject[] {
       url += `?${query.toString()}`;
     }
 
-    sources.push({
+    const sourceObject: VideojsHTTPSourceObject = {
       src: url,
       type,
       sourceType: proto
-    });
+    };
+
+    const keySystems = proto === 'dash' ? source.settings?.dash?.keySystems : source.settings?.hls?.keySystems;
+
+    if (keySystems !== undefined) {
+      sourceObject.keySystems = keySystems;
+    }
+
+    sources.push(sourceObject);
   }
 
   return sources;
@@ -531,4 +571,66 @@ function isSourceControllerURLSource(source: CeeblueSource): source is CeeblueUR
 
 function isSourceControllerCloudSource(source: CeeblueSource): source is CeeblueCloudSource {
   return 'endPoint' in source && 'streamName' in source;
+}
+
+function mergeSourceWithGlobalSettings(source: CeeblueSource, globalSettings?: CeeblueSourcesSettings): CeeblueSource {
+  if (!globalSettings || !isSourceControllerCloudSource(source)) {
+    return source;
+  }
+
+  const settings = mergeSourceSettings(globalSettings, source.settings);
+
+  if (settings === undefined) {
+    return source;
+  }
+
+  return {
+    ...source,
+    settings
+  };
+}
+
+function mergeSourceSettings(base?: CeeblueSourcesSettings, override?: CeeblueSourcesSettings): CeeblueSourcesSettings | undefined {
+  if (!base && !override) {
+    return undefined;
+  }
+
+  const mergedSettings: CeeblueSourcesSettings = {};
+  const webrtc = mergeNamedSettings(base?.webrtc, override?.webrtc);
+  const wrts = mergeNamedSettings(base?.wrts, override?.wrts);
+  const hls = mergeNamedSettings(base?.hls, override?.hls);
+  const dash = mergeNamedSettings(base?.dash, override?.dash);
+
+  if (webrtc !== undefined) {
+    mergedSettings.webrtc = webrtc;
+  }
+
+  if (wrts !== undefined) {
+    mergedSettings.wrts = wrts;
+  }
+
+  if (hls !== undefined) {
+    mergedSettings.hls = hls;
+  }
+
+  if (dash !== undefined) {
+    mergedSettings.dash = dash;
+  }
+
+  return mergedSettings;
+}
+
+function mergeNamedSettings<T extends object>(base?: T, override?: T): T | undefined {
+  if (!base) {
+    return override;
+  }
+
+  if (!override) {
+    return base;
+  }
+
+  return {
+    ...base,
+    ...override
+  };
 }

@@ -29,4 +29,15 @@ videojs.log('ceeblue/videojs-plugins ' + SourceHandler.VERSION + ' loaded (WebRT
 
 export default CeeblueVideoJSPlugin;
 export { QualityButtonPlugin };
-export {type CeeblueCloudSource, type CeeblueSingleSource, type CeeblueSource, type CeeblueSources, type CeeblueURLSource } from './sources/sources';
+export {
+  type CeeblueCloudSource,
+  type CeeblueCloudDASHSettings,
+  type CeeblueCloudHLSSettings,
+  type CeeblueDRMKeySystemConfiguration,
+  type CeeblueDRMKeySystems,
+  type CeeblueSingleSource,
+  type CeeblueSource,
+  type CeeblueSources,
+  type CeeblueSourcesSettings,
+  type CeeblueURLSource
+} from './sources/sources';

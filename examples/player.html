@@ -19,7 +19,7 @@
       integrity="sha384-TbilV5Lbhlwdyc4RuIV/JhD8NR+BfMrvz4BL5QFa2we1hQu6wvREr3v6XSRfCTRp" rel="stylesheet">
     <link crossorigin="anonymous" href="https://use.fontawesome.com/releases/v5.1.0/css/fontawesome.css"
       integrity="sha384-ozJwkrqb90Oa3ZNb+yKFW2lToAWYdTiF1vt8JiH5ptTGHTGcN7qdoR1F95e0kYyG" rel="stylesheet">
-    <link href="https://vjs.zencdn.net/8.20.0/video-js.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/video.js@8.22.0/dist/video-js.min.css" rel="stylesheet">
     <link href="../dist/videojs-plugins.css" rel="stylesheet">
 
     <style>
@@ -65,6 +65,64 @@
     [v-cloak] {
       display: none;
     }
+
+    .drm-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.7rem;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: #f8fafc;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+      font-size: 0.82rem;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .drm-status__label {
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      color: rgba(248, 250, 252, 0.7);
+    }
+
+    .drm-status__value {
+      font-weight: 600;
+    }
+
+    .player-actions {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      margin-top: 0.5rem;
+    }
+
+    .player-actions__center {
+      grid-column: 2;
+      justify-self: center;
+    }
+
+    .player-actions__right {
+      grid-column: 3;
+      justify-self: start;
+      margin-left: 1rem;
+    }
+
+    @media (max-width: 767.98px) {
+      .player-actions {
+        grid-template-columns: 1fr;
+        row-gap: 0.75rem;
+      }
+
+      .player-actions__center,
+      .player-actions__right {
+        grid-column: 1;
+        justify-self: center;
+        margin-left: 0;
+      }
+    }
     </style>
   </head>
 
@@ -95,7 +153,7 @@
         </div>
 
         <div class="form-row">
-          <div class="form-group col-6 col-sm-4">
+          <div class="form-group col-6 col-sm-3" v-if="shouldShowSignalingSelector()">
             <select class="custom-select" id="signaling-selection"
               :disabled="playState !== PlayState.STOPPED"
               v-model="connectorType" title="Signaling">
@@ -104,12 +162,12 @@
               </option>
             </select>
           </div>
-          <div class="form-group col-6 col-sm-4">
+          <div class="form-group col-6" :class="shouldShowSignalingSelector() ? 'col-sm-5' : 'col-sm-6'">
             <input :disabled="isPlaying()" class="form-control"
               placeholder="Node host" type="text"
               v-model="host" title="Ceeblue node host">
           </div>
-          <div class="form-group col-6 col-sm-4">
+          <div class="form-group col-6" :class="shouldShowSignalingSelector() ? 'col-sm-4' : 'col-sm-6'">
             <input disabled class="form-control"
               placeholder="Video quality" type="text"
               v-model="quality" title="Stream quality">
@@ -176,13 +234,21 @@
           </div>
         </div>
 
-        <div class="d-flex justify-content-center" v-cloak>
-          <button class="btn" type="button"
-            v-bind:class="{ 'btn-danger': isPlaying(), 'btn-success': isStopped(), 'btn-secondary': isStarting() }"
-            v-on:click="play">
-            <span>{{ playButtonCaption() }} <i class="fas fa-spinner fa-pulse"
-                v-if="isStarting()"></i></span>
-          </button>
+        <div class="player-actions" v-cloak>
+          <div class="player-actions__center">
+            <button class="btn" type="button"
+              v-bind:class="{ 'btn-danger': isPlaying(), 'btn-success': isStopped(), 'btn-secondary': isStarting() }"
+              v-on:click="play">
+              <span>{{ playButtonCaption() }} <i class="fas fa-spinner fa-pulse"
+                  v-if="isStarting()"></i></span>
+            </button>
+          </div>
+          <div class="player-actions__right" v-if="shouldShowDRMStatus()">
+            <div class="drm-status" title="Supported content decryption modules for the current encrypted stream">
+              <span class="drm-status__label">DRM</span>
+              <span class="drm-status__value">{{ drmStatusLabel() }}</span>
+            </div>
+          </div>
         </div>
 
         <div class="card border-0 mt-4">
@@ -241,7 +307,8 @@
     } from 'https://cdn.jsdelivr.net/npm/@ceeblue/web-utils@7.8.0/dist/web-utils.min.js';
     import { createApp } from 'https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.prod.js';
     import 'https://cdn.jsdelivr.net/npm/webrtc-adapter/out/adapter.js';
-    import 'https://vjs.zencdn.net/8.20.0/video.min.js';
+    import 'https://cdn.jsdelivr.net/npm/video.js@8.22.0/dist/video.min.js';
+    import 'https://cdn.jsdelivr.net/npm/videojs-contrib-eme@5.5.2/dist/videojs-contrib-eme.js';
     import '../dist/videojs-plugins.js';
 
     const Ceeblue = videojs.getPlugin('ceeblue');
@@ -305,6 +372,11 @@
             nackCount: 0
           },
           quality: '',
+          supportedCDMs: null,
+          currentSourceEncrypted: false,
+          currentSourceKeySystems: null,
+          activeCDM: '',
+          boundTechElement: null,
         }
       },
       created() {
@@ -537,7 +609,22 @@
                   webrtc: {
                     signaling,
                   },
-                  wrts: this.buildWrtsSettings()
+                  wrts: this.buildWrtsSettings(),
+                  dash: { 
+                    keySystems: {
+                      'com.widevine.alpha': 'https://widevine-dash.ezdrm.com/widevine-php/widevine-foreignkey.php?pX=B752A3',
+                      'com.microsoft.playready': 'https://playready.ezdrm.com/cency/preauth.aspx?pX=CAF350'
+                    }
+                  },
+                  hls: {
+                    keySystems: {
+                      'com.widevine.alpha': 'https://widevine-dash.ezdrm.com/widevine-php/widevine-foreignkey.php?pX=B752A3',
+                      'com.apple.fps': {
+                        certificateUri: 'https://na-fps.ezdrm.com/demo/video/eleisure.cer',
+                        licenseUri: 'https://fps.ezdrm.com/api/licenses/auth?pX=48EA94&assetid=c9e170a5-b3af-49d8-a8ad-fc2d90104744'
+                      }
+                    }
+                  },
                 }
               }
             }
@@ -566,6 +653,115 @@
 
           return plugin?.currentSource?.sourceType || '';
         },
+        getSupportedCDMNames() {
+          const supportedCDMs = this.supportedCDMs;
+
+          if (!supportedCDMs) {
+            return [];
+          }
+
+          const labels = {
+            fairplay: 'FairPlay',
+            playready: 'PlayReady',
+            widevine: 'Widevine'
+          };
+
+          return Object.entries(labels)
+            .filter(([key]) => !!supportedCDMs[key])
+            .map(([, label]) => label);
+        },
+        shouldShowDRMStatus() {
+          return this.currentSourceEncrypted;
+        },
+        shouldShowSignalingSelector() {
+          return this.sources.includes('webrtc');
+        },
+        drmStatusLabel() {
+          if (this.activeCDM) {
+            return this.activeCDM;
+          }
+
+          const supportedNames = this.getSupportedCDMNames();
+
+          if (!supportedNames.length) {
+            return 'Encrypted stream';
+          }
+
+          return 'Available: ' + supportedNames.join(' · ');
+        },
+        getConfiguredDRMSystems(source) {
+          if (!source?.keySystems) {
+            return [];
+          }
+
+          const labels = {
+            'com.apple.fps': 'FairPlay',
+            'com.apple.fps.1_0': 'FairPlay',
+            'com.microsoft.playready': 'PlayReady',
+            'com.widevine.alpha': 'Widevine'
+          };
+
+          return Object.keys(source.keySystems)
+            .map(key => labels[key])
+            .filter(Boolean);
+        },
+        getCDMLabelFromEvent(event) {
+          const labels = {
+            'com.apple.fps': 'FairPlay',
+            'com.apple.fps.1_0': 'FairPlay',
+            'com.microsoft.playready': 'PlayReady',
+            'com.widevine.alpha': 'Widevine'
+          };
+          const keySystem =
+            event?.keySystem ||
+            event?.keySystemAccess?.keySystem ||
+            event?.mediaKeySystemAccess?.keySystem ||
+            event?.target?.keySystem;
+
+          return labels[keySystem] || '';
+        },
+        bindTechEvents() {
+          const tech = player?.tech?.(true) || player?.tech_ || null;
+          const techElement = tech?.el?.() || tech?.el_ || null;
+
+          if (!techElement || this.boundTechElement === techElement) {
+            return;
+          }
+
+          this.boundTechElement = techElement;
+
+          if (tech?.on) {
+            tech.on('licenserequestattempted', (event) => {
+              const cdm = this.getCDMLabelFromEvent(event);
+
+              if (cdm) {
+                this.activeCDM = cdm;
+              }
+            });
+
+            tech.on('keystatuschange', (event) => {
+              const cdm = this.getCDMLabelFromEvent(event);
+
+              if (cdm) {
+                this.activeCDM = cdm;
+              }
+            });
+          }
+
+          if (techElement?.addEventListener) {
+            techElement.addEventListener('encrypted', () => {
+              this.currentSourceEncrypted = true;
+
+              if (!this.activeCDM) {
+                const configuredSystems = this.getConfiguredDRMSystems({ keySystems: this.currentSourceKeySystems });
+
+                if (configuredSystems.length === 1) {
+                  [this.activeCDM] = configuredSystems;
+                }
+              }
+            });
+          }
+        },
         isWrtsSelected() {
           return (this.source || this.selectedSource) === 'wrts';
         },
@@ -575,6 +771,10 @@
 
           if (nextState === PlayState.STOPPED) {
             this.quality = '';
+            this.currentSourceEncrypted = false;
+            this.currentSourceKeySystems = null;
+            this.activeCDM = '';
+            this.boundTechElement = null;
           }
         },
         updateQualityFromLevels() {
@@ -600,10 +800,24 @@
           this.quality = quality.width + 'x' + quality.height + ' ' + Math.floor(quality.bitrate / 1000) + 'kbps';
         },
         bindPlayerEvents() {
+          this.bindTechEvents();
+          player.eme.detectSupportedCDMs()
+          .then(supportedCDMs => {
+            // Sample output: {fairplay: false, playready: false, widevine: true, clearkey: true}
+            console.log('supportedCDMs :', supportedCDMs);
+            this.supportedCDMs = supportedCDMs;
+          });
+
           player.on('sourcechanged', (event) => {
             const source = event.details.source;
 
             console.log('sourcechanged', source);
+            console.log('source keySystems', source?.keySystems);
+            this.currentSourceEncrypted = false;
+            this.currentSourceKeySystems = source?.keySystems || null;
+            this.activeCDM = '';
+            this.boundTechElement = null;
+            setTimeout(() => this.bindTechEvents(), 0);
             if (source) {
               this.dataMessages = '';
               this.pendingMessageCount = 0;
@@ -616,6 +830,7 @@
 
           player.on('loadstart', () => {
             this.syncPlaybackState(PlayState.STARTING);
+            setTimeout(() => this.bindTechEvents(), 0);
           });
 
           player.on('loadedmetadata', () => {
@@ -668,6 +883,13 @@
           if (!player) {
             this.playerOptions = this.buildPlayerOptions(nextSource);
             player = videojs(this.$refs.videoPlayer, this.playerOptions);
+            console.log('EME plugin', {
+              playerEmeType: typeof player.eme,
+              plugin: typeof videojs.getPlugin === 'function' ? videojs.getPlugin('eme') : null
+            });
+            if (typeof player.eme === 'function') {
+              player.eme();
+            }
             this.bindPlayerEvents();
             return;
           }
