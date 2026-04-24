@@ -22,7 +22,7 @@ This example demonstrates the basic setup of Video.js with the Ceeblue plugin.
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ceeblue Video.js Plugin</title>
-  <link href="https://vjs.zencdn.net/8.20.0/video-js.css" rel="stylesheet">
+  <link href="https://vjs.zencdn.net/8.22.0/video-js.css" rel="stylesheet">
   <link href="/dist/videojs-plugins.css" rel="stylesheet">
 </head>
 <body>
@@ -31,12 +31,13 @@ This example demonstrates the basic setup of Video.js with the Ceeblue plugin.
   const streamname = 'out+de1e6f7c-e5db-450b-9603-c3644274779b';
   const host = 'fly.live.ceeblue.tv';
   const token = '';
-  const protocols = ['hls'];
+  const protocols = ['wrts', 'webrtc', 'llhls'];
 
-  import 'https://vjs.zencdn.net/8.20.0/video.min.js';
+  import 'https://vjs.zencdn.net/8.22.0/video.min.js';
   import '/dist/videojs-plugins.js';
 
   const video = document.createElement('video');
+  video.muted = true;
   const videoPlayerContainer = document.querySelector('.player-container');
 
   if (!videoPlayerContainer) {
@@ -48,7 +49,7 @@ This example demonstrates the basic setup of Video.js with the Ceeblue plugin.
   video.preload = 'auto';
   videoPlayerContainer.appendChild(video);
 
-  playerJS = videojs(video, {
+  const playerJS = videojs(video, {
     controls: true,
     responsive: true,
     fluid: true,
@@ -67,8 +68,6 @@ This example demonstrates the basic setup of Video.js with the Ceeblue plugin.
   playerJS.on('loadedmetadata', (e) => {
     console.log('loadedmetadata', e);
   });
-
-  videoPlayerContainer.appendChild(playerJS.getPlayer());
   </script>
 </body>
 </html>
@@ -84,4 +83,3 @@ This example demonstrates the basic setup of Video.js with the Ceeblue plugin.
 5. Monitor player events for debugging.
 
 ## Next Steps
-
