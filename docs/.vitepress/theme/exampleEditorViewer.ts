@@ -1,4 +1,5 @@
-import * as monaco from 'monaco-editor'
+import * as monaco from 'monaco-editor/esm/vs/editor/editor.api'
+import 'monaco-editor/esm/vs/basic-languages/html/html.contribution'
 
 class CeebluePluginExample extends HTMLElement {
   #editor: monaco.editor.IStandaloneCodeEditor | undefined = undefined;
