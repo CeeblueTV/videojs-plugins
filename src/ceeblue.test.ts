@@ -8,6 +8,25 @@ interface PlayerWithCeeblue extends Player {
   ceeblue: () => CeeblueVideoJSPlugin;
 }
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error(message));
+    }, timeoutMs);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      }
+    );
+  });
+}
+
 describe('CeeblueVideoJSPlugin', () => {
   let player: PlayerWithCeeblue;
   let videoElement: HTMLVideoElement;
@@ -74,14 +93,9 @@ describe('CeeblueVideoJSPlugin', () => {
   it('should handle errors and retry', async () => {
     player.trigger('error');
 
-    await Promise.race([
-      new Promise<void>((resolve) => {
-        setTimeout(resolve, 2100);
-      }),
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Error retry timeout')), 5000);
-      })
-    ]);
+    await withTimeout(new Promise<void>((resolve) => {
+      setTimeout(resolve, 2100);
+    }), 5000, 'Error retry timeout');
 
     expect(plugin.currentSource).toBeDefined();
   });
@@ -95,57 +109,32 @@ describe('CeeblueVideoJSPlugin', () => {
 
     plugin.setSource({ protocol: 'hls' });
 
-    await Promise.race([
-      sourceChanged,
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Source switch timeout')), 5000);
-      })
-    ]);
+    await withTimeout(sourceChanged, 5000, 'Source switch timeout');
 
     expect(plugin.currentSource?.sourceType).toBe('hls');
   });
 
   it('should start playing when play() is called after user interaction', async () => {
-    await Promise.race([
-      player.play(),
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Play timeout')), 5000);
-      })
-    ]);
+    await withTimeout(player.play(), 5000, 'Play timeout');
 
     expect(player.paused()).toBe(false);
   });
 
   it('should receive video data when playing', async () => {
-    await Promise.race([
-      player.play(),
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Play timeout')), 60000);
-      })
-    ]);
+    await withTimeout(player.play(), 60000, 'Play timeout');
 
     expect(player.readyState()).toBeGreaterThan(0);
     expect(player.currentTime()).toBeGreaterThanOrEqual(0);
   });
 
   it('should handle play/pause controls', async () => {
-    await Promise.race([
-      player.play(),
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Play timeout')), 60000);
-      })
-    ]);
+    await withTimeout(player.play(), 60000, 'Play timeout');
     expect(player.paused()).toBe(false);
 
     player.pause();
     expect(player.paused()).toBe(true);
 
-    await Promise.race([
-      player.play(),
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Play timeout')), 60000);
-      })
-    ]);
+    await withTimeout(player.play(), 60000, 'Play timeout');
     expect(player.paused()).toBe(false);
   });
 });

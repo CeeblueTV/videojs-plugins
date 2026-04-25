@@ -562,7 +562,7 @@ function buildWRTSSource(source: CeeblueCloudSource): VideojsWRTSSourceObject {
 }
 
 function isSourceControllerSingleSource(option: CeeblueSourcesOptions): option is CeeblueSingleSource {
-  return !Array.isArray(option as CeeblueSources);
+  return !('sources' in option);
 }
 
 function isSourceControllerURLSource(source: CeeblueSource): source is CeeblueURLSource {

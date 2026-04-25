@@ -11,6 +11,12 @@ interface PlayerWithQualityButton extends Player {
 describe('QualityButtonPlugin', () => {
   let player: PlayerWithQualityButton;
   let videoElement: HTMLVideoElement;
+  let originalLoad: typeof HTMLMediaElement.prototype.load;
+
+  beforeEach(() => {
+    originalLoad = HTMLMediaElement.prototype.load;
+    HTMLMediaElement.prototype.load = function() {};
+  });
 
   beforeEach(() => {
     videoElement = document.createElement('video');
@@ -27,6 +33,8 @@ describe('QualityButtonPlugin', () => {
   });
 
   afterEach(() => {
+    HTMLMediaElement.prototype.load = originalLoad;
+
     if (player) {
       player.dispose();
     }
