@@ -1,4 +1,4 @@
-# CONTRIBUTING
+# Contributing
 
 Your contributions to this project are highly appreciated. Please adhere to this guide to streamline the process for everyone.
 
@@ -27,23 +27,7 @@ To contribute fork the project, then submit a Pull-Request with your changes, ta
 
 We use [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) for continuous deployment, versioning, and changelog creation.
 
-Once `npm install` is executed, git hooks aid in the committing process. Should the hooks not install automatically, run `npm rebuild husky`. Use `git commit` to commit your changes; [Commitizen](https://github.com/commitizen/cz-cli) assists in crafting a structured commit message. To complete the commit, close the text editor that appears (typically with ctrl + x), and then `git push` as usual.
-
-## Getting Started
-
-Make sure you have Node.js 8 or higher and npm installed.
-
-1. Fork this repository and clone your fork
-1. Install dependencies: `npm install`
-1. Run a development server: `npm start`
-
-### Running Tests
-
-Testing is a crucial part of any software project. For all but the most trivial changes (typos, etc) test cases are expected. Tests are run in actual browsers using [Karma][karma].
-
-- In all available and supported browsers: `npm test`
-- In a specific browser: `npm run test:chrome`, `npm run test:firefox`, etc.
-- While development server is running (`npm start`), navigate to [`http://localhost:9999/test/`][local]
+Once `npm install` is executed, git hooks are automatically configured to aid in the committing process. Use `git commit` to commit your changes. The commit message will be validated against conventional commit standards.
 
 ## [Developer's Certificate of Origin 1.1](https://github.com/nodejs/node/blob/main/CONTRIBUTING.md#developers-certificate-of-origin-11)
 
@@ -74,6 +58,3 @@ By making a contribution to this project, I certify that:
 ## Questions?
 
 For inquiries other than bug reports or feature requests, please send an email to our support team at <support@ceeblue.net>.
-
-[karma]: http://karma-runner.github.io/
-[local]: http://localhost:9999/test/
