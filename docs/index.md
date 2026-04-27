@@ -1,13 +1,13 @@
 # Ceeblue Video.js Plugin
 
-An open-source plugin for Video.js that allows you to play streams from the Ceeblue cloud, Supports WebRTS, WHIP, WebRTC.
+An open-source Video.js plugin for playing streams from the Ceeblue cloud with protocol fallback across WebRTS, WebRTC/WHEP, LL-HLS, HLS and DASH.
 
 ## Features
 
 - Ceeblue's WebRTS support.
 - WebRTC, WHEP support.
 - Playing streams from the Ceeblue cloud.
-- DRM support.
+- HTTP DRM support for HLS, LL-HLS and DASH through `videojs-contrib-eme`.
 - Video quality switching.
 - Protocol fallback.
 - Real-time universal stats API.
@@ -33,6 +33,54 @@ pnpm add @ceeblue/videojs-plugins
 ```
 
 :::
+
+## Quick Example
+
+```js
+const player = videojs('video-player', {
+  controls: true,
+  responsive: true,
+  fluid: true,
+  plugins: {
+    ceeblue: {
+      endPoint: '<host>',
+      streamName: '<streamName>',
+      accessToken: '<accessToken>',
+      protocols: ['wrts', 'webrtc', 'llhls', 'hls', 'dash'],
+      autoFallback: true
+    }
+  }
+});
+```
+
+Direct sources are supported too, including WRTS:
+
+```js
+player.src({
+  src: 'https://<host>/wrts/<streamName>/index.json',
+  type: 'application/json',
+  bufferLimitLow: 400,
+  bufferLimitHigh: 800
+});
+```
+
+## DRM
+
+If you use `keySystems`, include `videojs-contrib-eme` before this plugin.
+
+- DRM is currently documented for HLS, LL-HLS and DASH source objects.
+- `LL-HLS` uses the `hls` settings bucket.
+- The advanced example shows a DRM status label only for streams that are actually detected as encrypted during playback.
+
+## Direct Sources
+
+The plugin registers direct source handlers for:
+
+- WebRTS with `type: 'application/json'`
+- WebRTC over WHEP or Ceeblue WebSocket signaling
+- HLS, LL-HLS and DASH
+
+For WRTS sources, the documented runtime options are `bufferLimitLow`, `bufferLimitHigh`, `reliable`, `cmcd`, `cmcdMode`, and `cmcdSid`.
 
 ## Documentation
 

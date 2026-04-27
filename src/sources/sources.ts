@@ -213,8 +213,6 @@ export type VideojsWebRTCSourceObject = {
   type?: 'application/sdp' | typeof ceeblueSignalingMimeType;
   sourceType: 'webrtc';
   iceServers?: RTCIceServer[];
-  audiobutton?: boolean | string;
-  data?: boolean | string;
 }
 
 export type VideojsWRTSSourceObject = {

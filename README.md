@@ -7,8 +7,9 @@ Set of [Videojs] plugins for playing streams from the [Ceeblue] cloud.
 This plugin contains:
 
 - **[WebRTCSource](#webrtcsource)**, a [Videojs] WebRTC playback source handler supporting [WHEP] and the Ceeblue WebSocket custom signaling,
+- **[WRTSSource](#wrtssource)**, a [Videojs] [WebRTS] playback source handler for Ceeblue's HTTPS segmented low-latency protocol,
 - **[QualityButton](#qualitybutton)**, a plugin to select the video quality for any kind of source implementing [videojs-contrib-quality-levels],
-- **[SourceController](#sourcecontroller)**, a utility class to switch automatically from one Ceeblue source to another (including WebRTC, HLS, LLHLS and DASH)
+- **[Ceeblue Plugin](#ceeblue-plugin)**, a Video.js plugin that expands Ceeblue sources, enables protocol fallback, and switches automatically between [WebRTS], WebRTC, LL-HLS, HLS and DASH.
 
 ## Table of Contents
 
@@ -20,13 +21,26 @@ This plugin contains:
   - [Parameters](#parameters)
     - [**src**](#src)
     - [**type**](#type)
-    - [**iceserver**](#iceserver)
-    - [**audiobutton**](#audiobutton)
-    - [**data**](#data)
+    - [**iceServers**](#iceservers)
   - [Source Object](#source-object)
   - [`<source>` HTML tag](#source-html-tag)
+- [WRTSSource](#wrtssource)
+  - [Parameters](#parameters-1)
+    - [**src**](#src-1)
+    - [**type**](#type-1)
+    - [**bufferLimitLow**](#bufferlimitlow)
+    - [**bufferLimitHigh**](#bufferlimithigh)
+    - [**reliable**](#reliable)
+    - [**cmcd**](#cmcd)
+    - [**cmcdMode**](#cmcdmode)
+    - [**cmcdSid**](#cmcdsid)
+  - [Source Object](#source-object-1)
+  - [`<source>` HTML tag](#source-html-tag-1)
 - [QualityButton](#qualitybutton)
-- [SourceController](#sourcecontroller)
+- [Ceeblue Plugin](#ceeblue-plugin)
+  - [Initialization](#initialization)
+  - [Source Events](#source-events)
+  - [DRM for HLS and DASH](#drm-for-hls-and-dash)
   - [Disabling QualityButton](#disabling-qualitybutton)
 - [Examples](#examples)
 - [Documentation](#documentation)
@@ -45,10 +59,13 @@ npm run build
 
 Include [@ceeblue/videojs-plugins][npm-url] in your HTML code as usual with the link to [Videojs] and this library.
 
+If you use `keySystems` for DRM playback, also include [videojs-contrib-eme](https://github.com/videojs/videojs-contrib-eme) before this plugin.
+
 Example:
 
 ```html
-<script src="https://vjs.zencdn.net/8.20.0/video.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/video.js@8.22.0/dist/video.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/videojs-contrib-eme@5.5.2/dist/videojs-contrib-eme.min.js"></script>
 <script src="./dist/videojs-plugins.js"></script>
 ```
 
@@ -60,7 +77,7 @@ Example:
 
 The `src` field contains the URL of the WebRTC endpoint.
 
-The protocol can be WebSocket (`wss`) to get the best of the custom Ceeblue signaling or HTTP (`https`) to use the standard WHEP signaling protocol.
+The protocol can be WebSocket (`wss`) to get the best of the custom Ceeblue signaling or HTTP (`https`) to use the standard [WHEP] signaling protocol.
 
 Here is the expected format:
 
@@ -84,35 +101,25 @@ The following options can be set in the query:
 
 **It is important for the MIME-type to be empty to use the WebRTC source.**
 
-#### **iceserver**
+#### **iceServers**
 
-[Ice-server](https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/RTCPeerConnection#iceservers) structure in JSON string format with TURN URL used to establish the WebRTC connection, mainly for TCP fallback.
+[RTCIceServer](https://developer.mozilla.org/en-US/docs/Web/API/RTCPeerConnection/RTCPeerConnection#iceservers) objects used to establish the WebRTC connection, mainly for TCP fallback.
 
-> Do not enclose the object in an array.
-> If you have multiple TURN servers, you can add them in the `urls` array.
-> **If not set, the plugin will use the default TURN server**
+If not set, the plugin will use the default TURN server for the Ceeblue endpoint.
 
 **Example:**
 
 > Replace `<host>` by your endpoint hostname
 
 ```js
-{
-  "urls": ["turn:<host>?transport=tcp", "turn:<host>:3478"],
-  "username": "ceeblue",
-  "credential": "ceeblue"
-}
+[
+  {
+    urls: ["turn:<host>?transport=tcp", "turn:<host>:3478"],
+    username: "ceeblue",
+    credential: "ceeblue"
+  }
+]
 ```
-
-#### **audiobutton**
-
-`false` to disable the WebRTC audio track selection button, `true` by default.
-
-#### **data**
-
-`true` to listen to all timed metadata tracks, `false` otherwise. `true` by default.
-
-> This has no effect on the player, to get the timed metadata in your application you need to use the [textTracks() API](https://videojs.com/guides/text-tracks/) of [Videojs], you can check [examples/player.html](./examples/player.html) for a usage example.
 
 ### Source Object
 
@@ -130,15 +137,12 @@ Call the `player.src()` method with a WebRTC URL.
   const player = videojs('video-tag');
   player.src({
     src: 'wss://<host>/<streamName>',
-    iceserver: '{
-      "urls": ["turn:<host>?transport=tcp", "turn:<host>:3478"],
-      "username": "ceeblue",
-      "credential": "ceeblue"
-    }',
-    audiobutton: true,
-    data: false
+    iceServers: [{
+      urls: ['turn:<host>?transport=tcp', 'turn:<host>:3478'],
+      username: 'ceeblue',
+      credential: 'ceeblue'
+    }],
   });
-  player.start();
 </script>
 ```
 
@@ -157,7 +161,111 @@ The WebRTC source can be set directly in the HTML Source tag.
 <div id="video_container">
     <video id=video-player width=960 height=540 class="video-js vjs-default-skin" controls>
         <source src="wss://<host>/webrtc/<streamName>" 
-            iceserver='{"urls": ["turn:<host>?transport=tcp", "turn:<host>:3478"], "username": "ceeblue", "credential": "ceeblue"}'>
+            iceservers='[{"urls":["turn:<host>?transport=tcp","turn:<host>:3478"],"username":"ceeblue","credential":"ceeblue"}]'>
+    </video>
+</div>
+<script>
+  var player = videojs('video-player');
+</script>
+```
+
+## WRTSSource
+
+### Parameters
+
+#### **src**
+
+The `src` field contains the URL of the WebRTS endpoint.
+
+Here is the expected format:
+
+```js
+https://<host>/wrts/<streamName>/index.json[?id=<accessToken>]
+```
+
+And here is an example URL:
+
+```js
+https://la-8.live.ceeblue.tv/wrts/as+12346f7c-e5db-450b-9603-c3644274779b/index.json
+```
+
+The following query option can be set:
+
+- **id** The access token in case the stream is private.
+
+#### **type**
+
+Use `application/json` for a direct WRTS source.
+
+#### **bufferLimitLow**
+
+Low buffer threshold in milliseconds.
+
+#### **bufferLimitHigh**
+
+High buffer threshold in milliseconds.
+
+#### **reliable**
+
+`true` to disable adaptive frame-skipping and favor reliable playback.
+
+#### **cmcd**
+
+[CMCD](https://cdn.cta.tech/cta/media/media/resources/standards/pdfs/cta-5004-final.pdf) verbosity forwarded to `@ceeblue/wrts-client`.
+
+Set the level of CMCD data to be sent: `'full'` sends all available keys, `'short'` sends only the necessary keys, `'none'` disables CMCD.
+
+#### **cmcdMode**
+
+CMCD delivery mode forwarded to `@ceeblue/wrts-client`.
+
+Define the CMCD delivery method: `'header'` sends the CMCD data in HTTP headers, `'query'` sends it via the query string.
+
+#### **cmcdSid**
+
+CMCD session identifier forwarded to `@ceeblue/wrts-client`.
+
+Specify a unique session ID for tracking the client session.
+
+### Source Object
+
+Call the `player.src()` method with a WRTS URL.
+
+**Example:**
+
+> Replace `<host>` by your endpoint hostname and `<streamName>` by your stream name.
+
+```html
+<script type="module">
+  import {} from "/path/to/video.min.js";
+  import {} from "/path/to/ceeblue/videojs-plugins.min.js";
+
+  const player = videojs('video-tag');
+  player.src({
+    src: 'https://<host>/wrts/<streamName>/index.json',
+    type: 'application/json',
+    bufferLimitLow: 400,
+    bufferLimitHigh: 800,
+    reliable: false
+  });
+</script>
+```
+
+### `<source>` HTML tag
+
+The WRTS source can also be set directly in the HTML Source tag.
+
+**Example:**
+
+> Replace `<host>` by your endpoint hostname and `<streamName>` by your stream name.
+
+```html
+<script src="//path/to/video.min.js"></script>
+<script src="//path/to/ceeblue/videojs-plugins.min.js"></script>
+
+<div id="video_container">
+    <video id=video-player width=960 height=540 class="video-js vjs-default-skin" controls>
+        <source src="https://<host>/wrts/<streamName>/index.json" type="application/json">
     </video>
 </div>
 <script>
@@ -167,7 +275,7 @@ The WebRTC source can be set directly in the HTML Source tag.
 
 ## QualityButton
 
-If you are not using the [SourceController](#sourcecontroller), the QualityButton plugin can be called with a simple command to create the video menu button using the qualityLevels of the current source (see [videojs-contrib-quality-levels]):
+If you are not using the `ceeblue` plugin fallback flow, the QualityButton plugin can be called with a simple command to create the video menu button using the qualityLevels of the current source (see [videojs-contrib-quality-levels]):
 
 ```html
 <script>
@@ -176,58 +284,80 @@ If you are not using the [SourceController](#sourcecontroller), the QualityButto
 </script>
 ```
 
-## SourceController
+## Ceeblue Plugin
 
-The [SourceController](./src/controllers/SourceController.js) allows you to configure fallback sources if the current source is not working (for example, if WebRTC is not supported in the browser).
-It is also used for seamlessly switching from one source to the other.
+The `ceeblue` plugin expands Ceeblue source definitions into Video.js source objects and can automatically fall back between protocols when playback fails.
 
-The constructor of `SourceController` takes three arguments :
+### Initialization
 
-- The videojs player,
-- The `Connect.Params`, the ceeblue connection parameters (see [Connect class]),
-- The list of sources in order of priority. A source can be a string from the `SourceType` list or a [Source Object] in order to set custom options.
+You can initialize the plugin either in the Video.js options or after player creation:
 
-To start the `SourceController` call the `start()` function with the `SourceType` to start with, or no argument to start from the first source.
+```js
+const player = videojs('video-player', {
+  controls: true,
+  responsive: true,
+  fluid: true,
+  plugins: {
+    ceeblue: {
+      endPoint: '<host>',
+      streamName: '<streamName>',
+      accessToken: '<accessToken>',
+      protocols: ['wrts', 'webrtc', 'llhls', 'hls', 'dash'],
+      autoFallback: true,
+      maxRetries: 3
+    }
+  }
+});
+```
 
-> The `SourceType` object in [SourceController.js](./src/controllers/SourceController.js) defines the list of possible sources,
-> The [Source object] must have the `src` field and the `type` field set to the MIME type of the source (empty for WebRTC, see [WebRTCSource](#webrtcsource)).
+```js
+const player = videojs('video-player');
 
-**Example:**
+player.ceeblue({
+  endPoint: '<host>',
+  streamName: '<streamName>',
+  protocols: ['webrtc', 'hls']
+});
+```
 
-> Replace `<endPoint>` by your endPoint, `host` by the endPoint hostname and `<streamName>` by your stream name.
+Direct URL sources are also supported:
 
-```javascript
-  const sourceController = new SourceController(
-    player
-  );
-  sourceController.on('sourcechanged', (source) => {
-    console.log('sourcechanged', source); // null means no more sources available
-  });
-  sourceController.start(
-    {
-      endPoint: '<endPoint>',
-      streamName: '<streamName>'
-      query: 'id=<accessToken>'
-    }, 
-    [
-      {
-        // A WebRTC source with custom options
-        src: 'wss://<host>/<streamName>',
-        iceserver: '{"urls": ["turn:<host>?transport=tcp", "turn:<host>:3478"], "username": "ceeblue", "credential": "ceeblue"}',
-      },
-      'llhls',
-      'dash',
-      {
-        // A fallback source with a custom type
-        src: 'http://vjs.zencdn.net/v/oceans.mp4',
-        type: 'video/mp4'
-      }
-    ]);
+```js
+player.ceeblue({
+  sources: [
+    { url: 'https://<host>/wrts/<streamName>/index.json', type: 'wrts' },
+    { url: 'wss://<host>/webrtc/<streamName>', type: 'webrtc' },
+    { url: 'https://<host>/cmaf/<streamName>/index.m3u8', type: 'llhls' },
+    { url: 'https://<host>/cmaf/<streamName>/index.mpd', type: 'dash' }
+  ],
+  autoFallback: true
+});
+```
+
+### Source Events
+
+The plugin emits a `sourcechanged` event whenever the active source changes. The initial source is also emitted on the next tick after plugin creation so listeners registered immediately after `videojs(...)` can still observe it.
+
+```js
+player.on('sourcechanged', (event) => {
+  console.log('sourcechanged', event.details.source);
+});
+```
+
+You can force a protocol or source index at runtime:
+
+```js
+player.ceeblue().setSource({ protocol: 'dash' });
+player.ceeblue().setSource(0);
 ```
 
 ### DRM for HLS and DASH
 
-For HLS, LL-HLS and DASH sources, DRM can be passed through with the same `keySystems` object accepted by `player.src(...)`.
+HTTP DRM support is currently available for HLS, LL-HLS and DASH sources through the standard Video.js `keySystems` option.
+
+- Include `videojs-contrib-eme` before this plugin when using DRM.
+- `LL-HLS` uses the `hls` settings bucket.
+- Top-level `settings` are merged into each Ceeblue cloud source, and per-source settings take precedence.
 
 This works both on direct URL sources and in Ceeblue `settings`:
 
@@ -240,37 +370,61 @@ player.ceeblue({
     hls: {
       keySystems: {
         'com.apple.fps': {
-          certificateUri: 'https://na-fps.ezdrm.com/demo/video/eleisure.cer',
-          licenseUri: 'https://fps.ezdrm.com/api/licenses/auth?pX=48EA94&assetid=c9e170a5-b3af-49d8-a8ad-fc2d90104744'
+          certificateUri: '...',
+          licenseUri: '...'
         },
-        'com.widevine.alpha': 'https://widevine-dash.ezdrm.com/widevine-php/widevine-foreignkey.php?pX=B752A3'
+        'com.widevine.alpha': '...'
       }
     },
     dash: {
       keySystems: {
-        'com.widevine.alpha': 'https://widevine-dash.ezdrm.com/widevine-php/widevine-foreignkey.php?pX=B752A3',
-        'com.microsoft.playready': 'https://playready.ezdrm.com/cency/preauth.aspx?pX=CAF350'
+        'com.widevine.alpha': '...',
+        'com.microsoft.playready': '...'
       }
     }
   }
 });
 ```
 
+```js
+player.ceeblue({
+  sources: [
+    {
+      url: 'https://example.com/stream.mpd',
+      type: 'dash',
+      keySystems: {
+        'com.widevine.alpha': '...',
+        'com.microsoft.playready': '...'
+      }
+    }
+  ]
+});
+```
+
 ### Disabling QualityButton
 
-By default the SourceController creates a [QualityButton](#qualitybutton) for the current source but you can disable it in the player's options with the `qualityButton` option:
+By default the plugin updates the [QualityButton](#qualitybutton) for the current source, but you can disable it with the `enableQualityOptions` option:
 
 ```javascript
-const player = videojs(videoEl, { qualityButton: false});
+const player = videojs(videoEl, {
+  plugins: {
+    ceeblue: {
+      endPoint: '<host>',
+      streamName: '<streamName>',
+      enableQualityOptions: false
+    }
+  }
+});
 ```
 
 ## Examples
 
 Examples can be found in the [examples/](./examples/) directory:
 
-- **player.html** An advanced example using WebRTC, the [SourceController](#sourcecontroller), and the [QualityButton](#qualitybutton), with a UI for setting parameters and displaying timed metadata.
-- **simple-player.html** A simple example using [SourceController](#sourcecontroller) with default parameters.
+- **player.html** An advanced example using the `ceeblue` plugin with protocol fallback, DRM-capable HTTP playback, quality selection, CDM status for encrypted streams, and real-time metrics.
+- **simple-player.html** A simple example using the `ceeblue` plugin with default parameters.
 - **webrtc-player.html** A simple example with a WebRTC source configured with the HTML `<source>` tag.
+- **wrts-player.html** A simple example focused on WebRTS source configured with the HTML `<source>` tag.
 
 All examples include the HTML code to include the library and player, and the JavaScript code to configure the player.
 You can add query parameters to the URL to test the different options.
@@ -291,7 +445,7 @@ This monorepo also contains built-in documentation about the APIs in the library
 npm run docs
 ```
 
-Open the index.html file in the docs folder with your browser to access the documentation. (`./docs/api/index.html`).
+Run `npm run docs:dev` for local development or open the generated VitePress site in `docs/.vitepress/dist/`.
 
 ## Contribution
 
@@ -309,4 +463,5 @@ By contributing code to this project, you agree to license your contribution und
 [videojs]: https://videojs.com/
 [videojs-options]: https://videojs.com/guides/options
 [videojs-contrib-quality-levels]: https://github.com/videojs/videojs-contrib-quality-levels
+[WebRTS]: https://github.com/CeeblueTV/wrts-client
 [WHEP]: https://datatracker.ietf.org/doc/draft-murillo-whep/

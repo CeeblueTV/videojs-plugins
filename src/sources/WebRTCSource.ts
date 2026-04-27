@@ -62,7 +62,7 @@ export class WebRTCSource {
    * Create a WebRTC source handler instance.
    *
    * @param Source object that is given in the DOM, includes the stream URL
-   *  and the source options : {iceserver: string|Object, audiobutton: true|false, data: true|false}
+   *  and the source options : {iceserver: string|Object}
    * @param tech The videojs tech object
    * @param options The videojs options object
    */
