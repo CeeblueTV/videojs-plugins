@@ -1,4 +1,4 @@
-module.exports = {
-  extends: ['@commitlint/config-conventional'],
-  ignores: [(message) => message.includes('[skip ci]')]
+export default {
+    extends: ['@commitlint/config-conventional'],
+    ignores: [commit => /^[^\r\n]*\[skip ci\]/.test(commit)]
 };

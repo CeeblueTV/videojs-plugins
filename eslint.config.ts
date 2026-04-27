@@ -3,7 +3,6 @@ import htmlParser from '@html-eslint/parser';
 import typescript from '@typescript-eslint/eslint-plugin';
 import parserTypeScript from '@typescript-eslint/parser';
 import markdown from 'eslint-plugin-markdown';
-import jsonLight from 'eslint-plugin-json-light';
 import jsdoc from 'eslint-plugin-jsdoc';
 import globals from 'globals';
 
@@ -14,11 +13,13 @@ export default [
   {
     name: 'ignore-dist',
     ignores: [
-      '**/dist/**',
-      '**/node_modules/**',
-      '**/docs/public/dist/**',
-      '**/docs/.vitepress/**',
-      '**/public/**'
+      'dist/**',
+      'node_modules/**',
+      'docs/public/dist/**',
+      'docs/public/*.bundle.js',
+      'docs/.vitepress/**',
+      'public/**',
+      'coverage/**',
     ]
   },
   {
@@ -42,7 +43,6 @@ export default [
     plugins: {
       typescript,
       markdown,
-      'json-light': jsonLight,
       jsdoc
     },
     rules: {

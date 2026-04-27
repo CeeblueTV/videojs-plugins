@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import videojs from 'video.js';
 import type Player from 'video.js/dist/types/player';
 import './plugin';
@@ -31,6 +31,12 @@ describe('CeeblueVideoJSPlugin', () => {
   let player: PlayerWithCeeblue;
   let videoElement: HTMLVideoElement;
   let plugin: CeeblueVideoJSPlugin;
+  let originalLoad: typeof HTMLMediaElement.prototype.load;
+  let originalPlay: typeof HTMLMediaElement.prototype.play;
+  let originalPause: typeof HTMLMediaElement.prototype.pause;
+  let originalPaused: PropertyDescriptor | undefined;
+  let originalReadyState: PropertyDescriptor | undefined;
+  let originalCurrentTime: PropertyDescriptor | undefined;
 
   const testOptions: CeeblueVideoJSPluginOptions = {
     autoFallback: true,
@@ -42,6 +48,59 @@ describe('CeeblueVideoJSPlugin', () => {
   };
 
   beforeEach(() => {
+    originalLoad = HTMLMediaElement.prototype.load;
+    originalPlay = HTMLMediaElement.prototype.play;
+    originalPause = HTMLMediaElement.prototype.pause;
+    originalPaused = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'paused');
+    originalReadyState = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'readyState');
+    originalCurrentTime = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime');
+
+    HTMLMediaElement.prototype.load = function() {};
+    HTMLMediaElement.prototype.play = function() {
+      const media = this as HTMLMediaElement & {
+        __mockPaused?: boolean;
+        __mockReadyState?: number;
+        __mockCurrentTime?: number;
+      };
+
+      media.__mockPaused = false;
+      media.__mockReadyState = 4;
+      media.__mockCurrentTime = Math.max(media.__mockCurrentTime ?? 0, 0.1);
+
+      return Promise.resolve();
+    };
+    HTMLMediaElement.prototype.pause = function() {
+      const media = this as HTMLMediaElement & {
+        __mockPaused?: boolean;
+      };
+
+      media.__mockPaused = true;
+    };
+
+    Object.defineProperty(HTMLMediaElement.prototype, 'paused', {
+      configurable: true,
+      get() {
+        return (this as HTMLMediaElement & { __mockPaused?: boolean }).__mockPaused ?? true;
+      }
+    });
+
+    Object.defineProperty(HTMLMediaElement.prototype, 'readyState', {
+      configurable: true,
+      get() {
+        return (this as HTMLMediaElement & { __mockReadyState?: number }).__mockReadyState ?? 0;
+      }
+    });
+
+    Object.defineProperty(HTMLMediaElement.prototype, 'currentTime', {
+      configurable: true,
+      get() {
+        return (this as HTMLMediaElement & { __mockCurrentTime?: number }).__mockCurrentTime ?? 0;
+      },
+      set(value: number) {
+        (this as HTMLMediaElement & { __mockCurrentTime?: number }).__mockCurrentTime = value;
+      }
+    });
+
     videoElement = document.createElement('video');
     videoElement.id = 'test-video';
     videoElement.muted = true;
@@ -65,6 +124,20 @@ describe('CeeblueVideoJSPlugin', () => {
   });
 
   afterEach(() => {
+    HTMLMediaElement.prototype.load = originalLoad;
+    HTMLMediaElement.prototype.play = originalPlay;
+    HTMLMediaElement.prototype.pause = originalPause;
+
+    if (originalPaused) {
+      Object.defineProperty(HTMLMediaElement.prototype, 'paused', originalPaused);
+    }
+    if (originalReadyState) {
+      Object.defineProperty(HTMLMediaElement.prototype, 'readyState', originalReadyState);
+    }
+    if (originalCurrentTime) {
+      Object.defineProperty(HTMLMediaElement.prototype, 'currentTime', originalCurrentTime);
+    }
+
     if (player) {
       player.dispose();
     }
@@ -91,6 +164,8 @@ describe('CeeblueVideoJSPlugin', () => {
   });
 
   it('should handle errors and retry', async () => {
+    const logErrorSpy = vi.spyOn(videojs.log, 'error').mockImplementation(() => {});
+
     player.trigger('error');
 
     await withTimeout(new Promise<void>((resolve) => {
@@ -98,6 +173,8 @@ describe('CeeblueVideoJSPlugin', () => {
     }), 5000, 'Error retry timeout');
 
     expect(plugin.currentSource).toBeDefined();
+
+    logErrorSpy.mockRestore();
   });
 
   it('should handle source switching by protocol', async () => {
