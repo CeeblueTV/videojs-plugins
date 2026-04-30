@@ -351,22 +351,38 @@ player.ceeblue().setSource({ protocol: 'dash' });
 player.ceeblue().setSource(0);
 ```
 
-### DRM for HLS and DASH
+### DRM for HLS, DASH and WRTS
 
-HTTP DRM support is currently available for HLS, LL-HLS and DASH sources through the standard Video.js `keySystems` option.
+DRM support is currently available for HLS, LL-HLS, DASH and WRTS sources through the standard Video.js `keySystems` option.
 
 - Include `videojs-contrib-eme` before this plugin when using DRM.
+- You can set `keySystems` globally at the top level of the Ceeblue plugin options.
 - `LL-HLS` uses the `hls` settings bucket.
 - Top-level `settings` are merged into each Ceeblue cloud source, and per-source settings take precedence.
+- Per-protocol or per-source `keySystems` override the top-level `keySystems` value.
 
-This works both on direct URL sources and in Ceeblue `settings`:
+This works both as a global default and in per-protocol/per-source overrides:
 
 ```js
 player.ceeblue({
   endPoint: '<endPoint>',
   streamName: '<streamName>',
-  protocols: ['hls', 'dash'],
+  protocols: ['wrts', 'hls', 'dash'],
+  keySystems: {
+    'com.widevine.alpha': '...',
+    'com.microsoft.playready': '...',
+    'com.apple.fps': {
+      certificateUri: '...',
+      licenseUri: '...'
+    }
+  },
   settings: {
+    wrts: {
+      keySystems: {
+        'com.widevine.alpha': '...',
+        'com.microsoft.playready': '...'
+      }
+    },
     hls: {
       keySystems: {
         'com.apple.fps': {
@@ -391,7 +407,32 @@ player.ceeblue({
   sources: [
     {
       url: 'https://example.com/stream.mpd',
-      type: 'dash',
+      type: 'dash'
+    },
+    {
+      url: 'https://example.com/wrts/stream/index.json',
+      type: 'wrts'
+    }
+  ],
+  keySystems: {
+    'com.widevine.alpha': '...',
+    'com.microsoft.playready': '...',
+    'com.apple.fps': {
+      certificateUri: '...',
+      licenseUri: '...'
+    }
+  }
+});
+```
+
+You can still override the global DRM config on a specific source:
+
+```js
+player.ceeblue({
+  sources: [
+    {
+      url: 'https://example.com/wrts/stream/index.json',
+      type: 'wrts',
       keySystems: {
         'com.widevine.alpha': '...',
         'com.microsoft.playready': '...'

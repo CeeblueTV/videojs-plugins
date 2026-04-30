@@ -1,5 +1,8 @@
 import type { CMCD, CMCDMode } from '@ceeblue/wrts-client';
 
+// This fixes a linting error
+type BrowserMediaKeySystemConfiguration = globalThis.MediaKeySystemConfiguration;
+
 /**
  * Protocols list supported by Ceeblue sources.
  * The order determines the priority of the protocols.
@@ -9,8 +12,17 @@ export const protocols = ['wrts', 'webrtc', 'llhls', 'hls', 'dash'] as const;
 type protocol = typeof protocols[number];
 
 export type CeeblueDRMKeySystemConfiguration = {
+  url?: string;
   licenseUri?: string;
   certificateUri?: string;
+  licenseHeaders?: Record<string, string | null>;
+  certificateHeaders?: Record<string, string | null>;
+  audioContentType?: string | string[];
+  videoContentType?: string | string[];
+  audioRobustness?: string | string[];
+  videoRobustness?: string | string[];
+  supportedConfigurations?: BrowserMediaKeySystemConfiguration[];
+  pssh?: Uint8Array;
   [key: string]: unknown;
 };
 
@@ -63,6 +75,10 @@ export type CeeblueWRTSCMCDMode = CMCDMode;
  * WebRTS source settings.
  */
 export type CeeblueWRTSSettings = {
+  /**
+   * DRM configuration passed through to Video.js EME for WRTS playback.
+   */
+  keySystems?: CeeblueDRMKeySystems;
   /**
    * Low buffer threshold in milliseconds.
    */
@@ -173,6 +189,10 @@ export type CeeblueURLSource = CeeblueAutoURLSource | CeeblueHTTPURLSource | Cee
 export type CeeblueSettings = {
   autoRetry?: true;
   autoFallback?: true;
+  /**
+   * Global DRM configuration applied to DRM-capable protocols unless overridden.
+   */
+  keySystems?: CeeblueDRMKeySystems;
 }
 
 /**
@@ -219,6 +239,7 @@ export type VideojsWRTSSourceObject = {
   src: string;
   type?: 'application/json';
   sourceType: 'wrts';
+  keySystems?: CeeblueDRMKeySystems;
   bufferLimitLow?: number;
   bufferLimitHigh?: number;
   reliable?: boolean;
@@ -242,10 +263,11 @@ export type CeeblueSourcesOptions = CeeblueSingleSource | CeeblueSources;
  */
 export function expandSourcesToVideoJSSources(option: CeeblueSourcesOptions) {
   const globalSettings = isSourceControllerSingleSource(option) ? undefined : option.settings;
+  const globalKeySystems = option.keySystems;
 
   return getOptionSources(option)
     .map(source => mergeSourceWithGlobalSettings(source, globalSettings))
-    .map(expandSourceToURLSource)
+    .map(source => expandSourceToURLSource(source, globalKeySystems))
     .flat();
 }
 
@@ -341,7 +363,7 @@ function getOptionSources(option: CeeblueSourcesOptions): CeeblueSource[] {
   return option.sources;
 }
 
-function expandSourceToURLSource(source: CeeblueSource): VideojsSourceObject|VideojsSourceObject[] {
+function expandSourceToURLSource(source: CeeblueSource, globalKeySystems?: CeeblueDRMKeySystems): VideojsSourceObject|VideojsSourceObject[] {
   if (isSourceControllerURLSource(source)) {
     const urlSource: {
       src: string;
@@ -366,12 +388,22 @@ function expandSourceToURLSource(source: CeeblueSource): VideojsSourceObject|Vid
     if ('type' in source && source.type) {
       urlSource.sourceType = source.type;
 
-      if ((source.type === 'hls' || source.type === 'llhls' || source.type === 'dash') && source.keySystems !== undefined) {
-        urlSource.keySystems = source.keySystems;
+      if (source.type === 'hls' || source.type === 'llhls' || source.type === 'dash') {
+        if (source.keySystems !== undefined) {
+          urlSource.keySystems = source.keySystems;
+        } else if (globalKeySystems !== undefined) {
+          urlSource.keySystems = globalKeySystems;
+        }
       }
 
       if (source.type === 'wrts') {
         const wrtsSource = source as CeeblueWRTSURLSource;
+
+        if (wrtsSource.keySystems !== undefined) {
+          urlSource.keySystems = wrtsSource.keySystems;
+        } else if (globalKeySystems !== undefined) {
+          urlSource.keySystems = globalKeySystems;
+        }
 
         if (wrtsSource.bufferLimitLow !== undefined) {
           urlSource.bufferLimitLow = wrtsSource.bufferLimitLow;
@@ -399,6 +431,18 @@ function expandSourceToURLSource(source: CeeblueSource): VideojsSourceObject|Vid
       }
     }
 
+    if (!('type' in source) || !source.type) {
+      const determined = determineSourceTypeFromURL(source.url);
+
+      if (
+        determined &&
+        (determined.sourceType === 'hls' || determined.sourceType === 'llhls' || determined.sourceType === 'dash' || determined.sourceType === 'wrts') &&
+        globalKeySystems !== undefined
+      ) {
+        urlSource.keySystems = globalKeySystems;
+      }
+    }
+
     return urlSource as VideojsSourceObject;
   }
 
@@ -406,10 +450,10 @@ function expandSourceToURLSource(source: CeeblueSource): VideojsSourceObject|Vid
     throw new Error(`Unknown source type expected URL source or Cloud source ${JSON.stringify(source)}`);
   }
 
-  return buildCloudSource(source);
+  return buildCloudSource(source, globalKeySystems);
 }
 
-function buildCloudSource(source: CeeblueCloudSource): VideojsSourceObject[] {
+function buildCloudSource(source: CeeblueCloudSource, globalKeySystems?: CeeblueDRMKeySystems): VideojsSourceObject[] {
   const usedProtocols = source.protocols?.length ? source.protocols : protocols;
   const sources: VideojsSourceObject[] = [];
   const hlsFormat = source.settings?.hls?.format ?? 'hls';
@@ -426,7 +470,7 @@ function buildCloudSource(source: CeeblueCloudSource): VideojsSourceObject[] {
     }
 
     if (proto === 'wrts') {
-      sources.push(buildWRTSSource(source));
+      sources.push(buildWRTSSource(source, globalKeySystems));
 
       continue;
     }
@@ -479,7 +523,9 @@ function buildCloudSource(source: CeeblueCloudSource): VideojsSourceObject[] {
       sourceType: proto
     };
 
-    const keySystems = proto === 'dash' ? source.settings?.dash?.keySystems : source.settings?.hls?.keySystems;
+    const keySystems = proto === 'dash'
+      ? source.settings?.dash?.keySystems ?? globalKeySystems
+      : source.settings?.hls?.keySystems ?? globalKeySystems;
 
     if (keySystems !== undefined) {
       sourceObject.keySystems = keySystems;
@@ -513,7 +559,7 @@ function buildWebRTCSource(source: CeeblueCloudSource): VideojsWebRTCSourceObjec
   return sourceObject;
 }
 
-function buildWRTSSource(source: CeeblueCloudSource): VideojsWRTSSourceObject {
+function buildWRTSSource(source: CeeblueCloudSource, globalKeySystems?: CeeblueDRMKeySystems): VideojsWRTSSourceObject {
   let url = `https://${source.endPoint}/wrts/${source.streamName}/index.json`;
   const query = source.query || new URLSearchParams();
   const wrtsSettings = source.settings?.wrts;
@@ -531,6 +577,12 @@ function buildWRTSSource(source: CeeblueCloudSource): VideojsWRTSSourceObject {
     type: 'application/json',
     sourceType: 'wrts'
   };
+
+  if (wrtsSettings?.keySystems !== undefined) {
+    sourceObject.keySystems = wrtsSettings.keySystems;
+  } else if (globalKeySystems !== undefined) {
+    sourceObject.keySystems = globalKeySystems;
+  }
 
   if (wrtsSettings?.bufferLimitLow !== undefined) {
     sourceObject.bufferLimitLow = wrtsSettings.bufferLimitLow;

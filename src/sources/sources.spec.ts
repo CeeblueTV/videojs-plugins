@@ -163,6 +163,101 @@ describe('sources', () => {
       });
     });
 
+    it('should apply global keySystems to DRM-capable Cloud protocols', () => {
+      const result = expandSourcesToVideoJSSources({
+        endPoint: 'example.com',
+        streamName: 'test-stream',
+        protocols: ['wrts', 'webrtc', 'hls', 'dash'],
+        keySystems
+      });
+
+      expect(result).toHaveLength(4);
+      expect(result[0]).toMatchObject({
+        sourceType: 'wrts',
+        keySystems
+      });
+      expect(result[1]).toMatchObject({
+        sourceType: 'webrtc'
+      });
+      expect(result[1]).not.toHaveProperty('keySystems');
+      expect(result[2]).toMatchObject({
+        sourceType: 'hls',
+        keySystems
+      });
+      expect(result[3]).toMatchObject({
+        sourceType: 'dash',
+        keySystems
+      });
+    });
+
+    it('should pass DRM keySystems through WRTS URL sources', () => {
+      const result = expandSourcesToVideoJSSources({
+        url: 'https://example.com/wrts/test-stream/index.json',
+        type: 'wrts',
+        keySystems
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        src: 'https://example.com/wrts/test-stream/index.json',
+        sourceType: 'wrts',
+        keySystems
+      });
+    });
+
+    it('should apply global keySystems to DRM-capable URL sources', () => {
+      const dashResult = expandSourcesToVideoJSSources({
+        url: 'https://example.com/stream.mpd',
+        type: 'dash',
+        keySystems
+      });
+      const wrtsResult = expandSourcesToVideoJSSources({
+        url: 'https://example.com/wrts/test-stream/index.json',
+        type: 'wrts',
+        keySystems
+      });
+
+      expect(dashResult[0]).toMatchObject({
+        sourceType: 'dash',
+        keySystems
+      });
+      expect(wrtsResult[0]).toMatchObject({
+        sourceType: 'wrts',
+        keySystems
+      });
+    });
+
+    it('should apply global keySystems to auto-detected DRM URL sources', () => {
+      const result = expandSourcesToVideoJSSources({
+        url: 'https://example.com/wrts/test-stream/index.json',
+        keySystems
+      });
+
+      expect(result[0]).toMatchObject({
+        src: 'https://example.com/wrts/test-stream/index.json',
+        keySystems
+      });
+    });
+
+    it('should add DRM keySystems to Cloud WRTS sources', () => {
+      const result = expandSourcesToVideoJSSources({
+        endPoint: 'example.com',
+        streamName: 'test-stream',
+        protocols: ['wrts'],
+        settings: {
+          wrts: {
+            keySystems
+          }
+        }
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        sourceType: 'wrts',
+        keySystems
+      });
+    });
+
     it('should merge top-level settings into Cloud sources', () => {
       const result = expandSourcesToVideoJSSources({
         settings: {
@@ -199,6 +294,73 @@ describe('sources', () => {
         keySystems
       });
       expect(result[1]?.src).toContain('/ts/stream-b/');
+    });
+
+    it('should merge top-level WRTS keySystems into Cloud sources', () => {
+      const result = expandSourcesToVideoJSSources({
+        settings: {
+          wrts: {
+            keySystems
+          }
+        },
+        sources: [
+          {
+            endPoint: 'example.com',
+            streamName: 'stream-a',
+            protocols: ['wrts']
+          }
+        ]
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        sourceType: 'wrts',
+        keySystems
+      });
+    });
+
+    it('should let per-protocol settings override global keySystems', () => {
+      const result = expandSourcesToVideoJSSources({
+        endPoint: 'example.com',
+        streamName: 'test-stream',
+        protocols: ['wrts', 'hls', 'dash'],
+        keySystems,
+        settings: {
+          wrts: {
+            keySystems: {
+              'com.widevine.alpha': 'https://wrts.example.com'
+            }
+          },
+          hls: {
+            keySystems: {
+              'com.apple.fps': {
+                certificateUri: 'https://override.example.com/cert',
+                licenseUri: 'https://override.example.com/license'
+              }
+            }
+          }
+        }
+      });
+
+      expect(result[0]).toMatchObject({
+        sourceType: 'wrts',
+        keySystems: {
+          'com.widevine.alpha': 'https://wrts.example.com'
+        }
+      });
+      expect(result[1]).toMatchObject({
+        sourceType: 'hls',
+        keySystems: {
+          'com.apple.fps': {
+            certificateUri: 'https://override.example.com/cert',
+            licenseUri: 'https://override.example.com/license'
+          }
+        }
+      });
+      expect(result[2]).toMatchObject({
+        sourceType: 'dash',
+        keySystems
+      });
     });
   });
 });

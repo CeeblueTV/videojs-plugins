@@ -66,10 +66,12 @@ player.src({
 
 ## DRM
 
-If you use `keySystems`, include `videojs-contrib-eme` before this plugin.
+If you use `keySystems`, include [videojs-contrib-eme](https://github.com/videojs/videojs-contrib-eme) before this plugin.
 
-- DRM is currently documented for HLS, LL-HLS and DASH source objects.
+- DRM is supported for HLS, LL-HLS, DASH and WRTS source objects through `keySystems`.
+- You can provide `keySystems` globally at the top level of the Ceeblue plugin options.
 - `LL-HLS` uses the `hls` settings bucket.
+- Per-protocol or per-source `keySystems` override the top-level `keySystems` value.
 - The advanced example shows a DRM status label only for streams that are actually detected as encrypted during playback.
 
 ## Direct Sources
@@ -80,7 +82,7 @@ The plugin registers direct source handlers for:
 - WebRTC over WHEP or Ceeblue WebSocket signaling
 - HLS, LL-HLS and DASH
 
-For WRTS sources, the documented runtime options are `bufferLimitLow`, `bufferLimitHigh`, `reliable`, `cmcd`, `cmcdMode`, and `cmcdSid`.
+For WRTS sources, the documented runtime options are `keySystems`, `bufferLimitLow`, `bufferLimitHigh`, `reliable`, `cmcd`, `cmcdMode`, and `cmcdSid`.
 
 ## Documentation
 
