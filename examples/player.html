@@ -865,6 +865,7 @@
           }
         },
         startPlayback(selectedSource) {
+          console.log('StartPlayback', { selectedSource, currentSource: this.source, previouslySelectedSource: this.selectedSource });
           const nextSource = selectedSource || this.selectedSource || void 0;
 
           if (nextSource) {
@@ -873,23 +874,22 @@
 
           this.syncPlaybackState(PlayState.STARTING);
 
-          if (!player) {
-            this.playerOptions = this.buildPlayerOptions(nextSource);
-            player = videojs(this.$refs.videoPlayer, this.playerOptions);
-            console.log('EME plugin', {
-              playerEmeType: typeof player.eme,
-              plugin: typeof videojs.getPlugin === 'function' ? videojs.getPlugin('eme') : null
-            });
-            if (typeof player.eme === 'function') {
-              player.eme();
-            }
-            this.bindPlayerEvents();
-            return;
+          if (player) {
+            player.dispose();
+            player = null;
+            textTracksBound = false;
           }
 
           this.playerOptions = this.buildPlayerOptions(nextSource);
-          player.ceeblue().replaceOptions(this.playerOptions.plugins.ceeblue);
-          player.ceeblue().setSource(0);
+          player = videojs(this.$refs.videoPlayer, this.playerOptions);
+          console.log('EME plugin', {
+            playerEmeType: typeof player.eme,
+            plugin: typeof videojs.getPlugin === 'function' ? videojs.getPlugin('eme') : null
+          });
+          if (typeof player.eme === 'function') {
+            player.eme();
+          }
+          this.bindPlayerEvents();
         },
         applyWrtsNetworkProfile() {
           const profile = this.wrtsNetworkProfiles.find((entry) => entry.value === this.wrtsNetworkProfile);

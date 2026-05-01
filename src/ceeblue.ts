@@ -92,11 +92,11 @@ export class CeeblueVideoJSPlugin extends Plugin {
   private _currentSourceIndex: number = 0;
 
   private _retryCount: number = 0;
-  private _maxRetries: number = 3;
-  private _gracePeriod: number = 2000;
   private _retryTimeout: ReturnType<typeof setTimeout> | null = null;
   private _qualityUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
   private _suspendFallback = false;
+  private _isStopped = false;
+  private _sourceRequestId = 0;
 
   /**
    * SourceController constructor
@@ -110,49 +110,43 @@ export class CeeblueVideoJSPlugin extends Plugin {
 
     this._player = player as PlayerWithQualityLevels;
     this._options = options;
-    this._maxRetries = options.maxRetries ?? 3;
-    this._gracePeriod = options.gracePeriod ?? 2000;
-
-    const sources = expandSourcesToVideoJSSources(options);
-
-    if (!sources.length) {
-      throw new Error('Expected at least one source');
-    }
-
-    this._sources = sources;
+    this._setOptions(options);
     this._currentSourceIndex = 0;
-    this._initializeEME(this._sources[0]);
-    this._player.src(this._sources[0]);
 
     player.on('error', this._handleError.bind(this));
     player.on('ended', this._handleEnded.bind(this));
     player.on('loadedmetadata', this._handleLoadedMetadata.bind(this));
 
-    // Emit the initial source change after construction so external listeners
-    // registered right after player creation can still observe the first source.
+    // Use the same guarded startup path as later source switches, but delay
+    // slightly so listeners registered right after player creation can still
+    // observe the initial sourcechanged event.
     setTimeout(() => {
-      if (this._player.isDisposed()) {
+      if (this._player.isDisposed() || this._isStopped) {
         return;
       }
 
-      this._handleSourceChanged(this._sources[this._currentSourceIndex]);
+      const source = this._sources[this._currentSourceIndex];
+
+      if (!source) {
+        return;
+      }
+
+      void this._setSource(source);
     }, 0);
   }
 
   /**
-   * Replace the current sources with the given options.
-   *
-   * @param options
+   * Apply options to the internal source list and runtime settings.
    */
-  replaceOptions(options: CeeblueVideoJSPluginOptions) {
+  private _setOptions(options: CeeblueVideoJSPluginOptions) {
     const sources = expandSourcesToVideoJSSources(options);
 
     if (!sources.length) {
       throw new Error('Expected at least one source');
     }
 
-    this._sources = sources;
     this._options = options;
+    this._sources = sources;
   }
 
   /**
@@ -160,6 +154,18 @@ export class CeeblueVideoJSPlugin extends Plugin {
    */
   get currentSource(): VideojsSourceObject | null {
     return this._sources[this._currentSourceIndex] || null;
+  }
+
+  private get _maxRetries() {
+    return this._options.maxRetries ?? 3;
+  }
+
+  private get _gracePeriod() {
+    return this._options.gracePeriod ?? 2000;
+  }
+
+  private _fallbackBlocked() {
+    return this._suspendFallback || this._isStopped;
   }
 
   /**
@@ -174,15 +180,31 @@ export class CeeblueVideoJSPlugin extends Plugin {
    * @param source The source to set
    */
   private async _setSource(source: VideojsSourceObject) {
+    const requestId = ++this._sourceRequestId;
+
+    this._isStopped = false;
     this._suspendFallback = true;
+    this._clearRetryTimeout();
     const shouldResumePlayback = !this._player.paused() || !!this._player.autoplay();
 
     try {
+      if (!this._isRequestActive(requestId)) {
+        return;
+      }
+
       // Pause the player
       this._player.pause();
 
+      if (!this._isRequestActive(requestId)) {
+        return;
+      }
+
       // Reset the player state
       this._player.reset();
+
+      if (!this._isRequestActive(requestId)) {
+        return;
+      }
 
       this._initializeEME(source);
       this._player.src(source);
@@ -193,6 +215,10 @@ export class CeeblueVideoJSPlugin extends Plugin {
       // Re-enable fallback before awaiting play(). WebRTC startup can keep the
       // play promise pending during signaling/handshake, and we still want
       // later error/ended events to trigger protocol fallback.
+      if (!this._isRequestActive(requestId)) {
+        return;
+      }
+
       this._suspendFallback = false;
 
       // Try to play the new source
@@ -200,13 +226,20 @@ export class CeeblueVideoJSPlugin extends Plugin {
         await this._player.play();
       }
     } catch (error) {
+      if (!this._isRequestActive(requestId)) {
+        return;
+      }
+
       videojs.log('Failed to play source', source, error);
+
       // If play fails, try the next source after grace period
       if (this._options.autoFallback) {
         this._scheduleRetry();
       }
     } finally {
-      this._suspendFallback = false;
+      if (this._isRequestActive(requestId)) {
+        this._suspendFallback = false;
+      }
     }
   }
 
@@ -221,10 +254,6 @@ export class CeeblueVideoJSPlugin extends Plugin {
     this._player.reset();
     this._player.error(null);
     this._handleSourceChanged();
-
-    setTimeout(() => {
-      this._suspendFallback = false;
-    }, 0);
   }
 
   /**
@@ -233,12 +262,8 @@ export class CeeblueVideoJSPlugin extends Plugin {
    * @param error the error message
    */
   _handleError(_: Event, error: unknown) {
-    if (this._suspendFallback) {
+    if (this._fallbackBlocked()) {
       return;
-    }
-
-    if (!error) {
-      error = this._player.error()?.message;
     }
 
     // If auto fallback is enabled, try the next source
@@ -251,7 +276,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
    * Handle videojs ended event.
    */
   _handleEnded() {
-    if (this._suspendFallback) {
+    if (this._fallbackBlocked()) {
       return;
     }
 
@@ -311,7 +336,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
    * Try the next source or ends if no more source is available.
    */
   _trySource() {
-    if (!this._sources.length) {
+    if (this._isStopped || !this._sources.length) {
       return;
     }
 
@@ -357,10 +382,19 @@ export class CeeblueVideoJSPlugin extends Plugin {
    * Schedule a retry after the grace period
    */
   private _scheduleRetry() {
-    if (this._retryTimeout) {
-      clearTimeout(this._retryTimeout);
+    if (this._isStopped) {
+      return;
     }
+
+    this._clearRetryTimeout();
+
     this._retryTimeout = setTimeout(() => {
+      this._retryTimeout = null;
+
+      if (this._isStopped) {
+        return;
+      }
+
       this._trySource();
     }, this._gracePeriod);
   }
@@ -394,13 +428,22 @@ export class CeeblueVideoJSPlugin extends Plugin {
   }
 
   stop() {
+    this._isStopped = true;
+    this._sourceRequestId++;
+    this._clearRetryTimeout();
+    this._retryCount = 0;
+    this._reset();
+  }
+
+  private _isRequestActive(requestId: number) {
+    return !this._isStopped && requestId === this._sourceRequestId;
+  }
+
+  private _clearRetryTimeout() {
     if (this._retryTimeout) {
       clearTimeout(this._retryTimeout);
       this._retryTimeout = null;
     }
-
-    this._retryCount = 0;
-    this._reset();
   }
 
   /**

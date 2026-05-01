@@ -39,12 +39,29 @@ describe('CeeblueVideoJSPlugin', () => {
   let originalCurrentTime: PropertyDescriptor | undefined;
 
   const testOptions: CeeblueVideoJSPluginOptions = {
-    autoFallback: true,
+    autoFallback: false,
     autoRetry: true,
     endPoint: 'fly.live.ceeblue.tv',
     streamName: 'out+de1e6f7c-e5db-450b-9603-c3644274779b',
     accessToken: '',
     protocols: ['hls']
+  };
+
+  const createPlayer = (options: CeeblueVideoJSPluginOptions = testOptions) => {
+    player = videojs(videoElement, {
+      autoplay: false,
+      muted: true,
+      controls: true,
+      responsive: true,
+      fluid: true,
+      bigPlayButton: true,
+      plugins: {
+        ceeblue: options
+      }
+    }) as PlayerWithCeeblue;
+
+    player.muted(true);
+    plugin = player.ceeblue();
   };
 
   beforeEach(() => {
@@ -106,21 +123,7 @@ describe('CeeblueVideoJSPlugin', () => {
     videoElement.muted = true;
     videoElement.defaultMuted = true;
     document.body.appendChild(videoElement);
-
-    player = videojs(videoElement, {
-      autoplay: false,
-      muted: true,
-      controls: true,
-      responsive: true,
-      fluid: true,
-      bigPlayButton: true,
-      plugins: {
-        ceeblue: testOptions
-      }
-    }) as PlayerWithCeeblue;
-
-    player.muted(true);
-    plugin = player.ceeblue();
+    createPlayer();
   });
 
   afterEach(() => {
@@ -165,6 +168,12 @@ describe('CeeblueVideoJSPlugin', () => {
 
   it('should handle errors and retry', async () => {
     const logErrorSpy = vi.spyOn(videojs.log, 'error').mockImplementation(() => {});
+
+    player.dispose();
+    createPlayer({
+      ...testOptions,
+      autoFallback: true
+    });
 
     player.trigger('error');
 
@@ -213,5 +222,35 @@ describe('CeeblueVideoJSPlugin', () => {
 
     await withTimeout(player.play(), 60000, 'Play timeout');
     expect(player.paused()).toBe(false);
+  });
+
+  it('should not resume fallback after stop interrupts an in-flight source change', async () => {
+    let rejectPlay: ((error?: unknown) => void) | null = null;
+
+    player.dispose();
+    createPlayer({
+      ...testOptions,
+      protocols: ['webrtc', 'hls']
+    });
+
+    const playSpy = vi.spyOn(player, 'play').mockImplementation(() => {
+      return new Promise((_, reject) => {
+        rejectPlay = reject;
+      });
+    });
+    const scheduleRetrySpy = vi.spyOn(plugin as never as { _scheduleRetry: () => void }, '_scheduleRetry');
+
+    player.autoplay(true);
+    plugin.setSource(0);
+    plugin.stop();
+    rejectPlay?.(new DOMException('The play() request was interrupted by a call to pause().', 'AbortError'));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(scheduleRetrySpy).not.toHaveBeenCalled();
+    expect(playSpy).toHaveBeenCalled();
+
+    playSpy.mockRestore();
+    scheduleRetrySpy.mockRestore();
   });
 });
