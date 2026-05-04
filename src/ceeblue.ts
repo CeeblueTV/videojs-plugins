@@ -32,9 +32,10 @@ export type CeeblueVideoJSPluginOptions = CeeblueSourcesOptions & {
    */
   autoFallback?: boolean;
   /**
-   * Maximum number of retry attempts for each protocol before moving to the next one.
+   * Maximum number of full source-list loops before stopping fallback.
+   * A value of 0 means retry indefinitely.
    *
-   * @default 3
+   * @default 0
    */
   maxRetries?: number;
   /**
@@ -91,7 +92,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
   private _sources: VideojsSourceObject[] = [];
   private _currentSourceIndex: number = 0;
 
-  private _retryCount: number = 0;
+  private _completedLoopCount: number = 0;
   private _retryTimeout: ReturnType<typeof setTimeout> | null = null;
   private _qualityUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
   private _suspendFallback = false;
@@ -157,7 +158,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
   }
 
   private get _maxRetries() {
-    return this._options.maxRetries ?? 3;
+    return this._options.maxRetries ?? 0;
   }
 
   private get _gracePeriod() {
@@ -340,21 +341,6 @@ export class CeeblueVideoJSPlugin extends Plugin {
       return;
     }
 
-    const currentSource = this._sources[this._currentSourceIndex];
-
-    if (!currentSource) {
-      return;
-    }
-
-    // If we haven't exceeded max retries for current source, try again
-    if (this._retryCount < this._maxRetries) {
-      this._retryCount++;
-      this._setSource(currentSource);
-      return;
-    }
-
-    // Reset retry count and move to next source
-    this._retryCount = 0;
     this._currentSourceIndex++;
 
     if (this._currentSourceIndex < this._sources.length) {
@@ -366,7 +352,15 @@ export class CeeblueVideoJSPlugin extends Plugin {
 
       this._setSource(nextSource);
     } else {
-      // Reset to first source if we've tried all sources
+      this._completedLoopCount++;
+
+      if (this._maxRetries > 0 && this._completedLoopCount >= this._maxRetries) {
+        this.stop();
+        return;
+      }
+
+      // Start a new loop from the first source when retries are unlimited or
+      // when we still have loops remaining.
       this._currentSourceIndex = 0;
       const firstSource = this._sources[0];
 
@@ -422,7 +416,30 @@ export class CeeblueVideoJSPlugin extends Plugin {
       throw new Error(`Source with protocol ${options.protocol} not found`);
     }
 
+    this._completedLoopCount = 0;
     this._currentSourceIndex = index;
+
+    this._setSource(source);
+  }
+
+  /**
+   * Replace the plugin options and restart from the first expanded source.
+   *
+   * This lets integrations refresh stream parameters without disposing the
+   * whole Video.js player and losing the underlying DOM element.
+   *
+   * @param options New plugin options
+   */
+  replaceOptions(options: CeeblueVideoJSPluginOptions) {
+    this._completedLoopCount = 0;
+    this._setOptions(options);
+    this._currentSourceIndex = 0;
+
+    const source = this._sources[this._currentSourceIndex];
+
+    if (!source) {
+      return;
+    }
 
     this._setSource(source);
   }
@@ -431,7 +448,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
     this._isStopped = true;
     this._sourceRequestId++;
     this._clearRetryTimeout();
-    this._retryCount = 0;
+    this._completedLoopCount = 0;
     this._reset();
   }
 

@@ -601,7 +601,7 @@
                 endPoint: this.host.toString(),
                 streamName: this.streamName,
                 accessToken: this.accessToken || void 0,
-                maxRetries: Number.parseInt(this.retryCount, 10) || 0,
+                maxRetries: Number.parseInt(this.retryCount, 10) || 1,
                 enableQualityOptions: !!this.videobutton,
                 protocols: this.buildProtocols(selectedSource),
                 query: this.buildQueryParams(),
@@ -815,6 +815,8 @@
               this.dataMessages = '';
               this.pendingMessageCount = 0;
               this.resetMetrics(true);
+            } else {
+              this.syncPlaybackState(PlayState.STOPPED);
             }
             this.source = source?.sourceType || this.getCurrentProtocol();
             this.selectedSource = this.source || this.selectedSource;
@@ -874,22 +876,22 @@
 
           this.syncPlaybackState(PlayState.STARTING);
 
-          if (player) {
-            player.dispose();
-            player = null;
-            textTracksBound = false;
-          }
-
           this.playerOptions = this.buildPlayerOptions(nextSource);
-          player = videojs(this.$refs.videoPlayer, this.playerOptions);
-          console.log('EME plugin', {
-            playerEmeType: typeof player.eme,
-            plugin: typeof videojs.getPlugin === 'function' ? videojs.getPlugin('eme') : null
-          });
-          if (typeof player.eme === 'function') {
-            player.eme();
+          const ceeblueOptions = this.playerOptions.plugins.ceeblue;
+
+          if (player) {
+            player.ceeblue().replaceOptions(ceeblueOptions);
+          } else {
+            player = videojs(this.$refs.videoPlayer, this.playerOptions);
+            console.log('EME plugin', {
+              playerEmeType: typeof player.eme,
+              plugin: typeof videojs.getPlugin === 'function' ? videojs.getPlugin('eme') : null
+            });
+            if (typeof player.eme === 'function') {
+              player.eme();
+            }
+            this.bindPlayerEvents();
           }
-          this.bindPlayerEvents();
         },
         applyWrtsNetworkProfile() {
           const profile = this.wrtsNetworkProfiles.find((entry) => entry.value === this.wrtsNetworkProfile);
@@ -930,7 +932,6 @@
           }
 
           player.ceeblue().stop();
-          this.syncPlaybackState(PlayState.STOPPED);
         },
         changeSource(e) {
           this.selectedSource = e.target.text;

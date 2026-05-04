@@ -304,11 +304,15 @@ const player = videojs('video-player', {
       accessToken: '<accessToken>',
       protocols: ['wrts', 'webrtc', 'llhls', 'hls', 'dash'],
       autoFallback: true,
-      maxRetries: 3
+      maxRetries: 2
     }
   }
 });
 ```
+
+`maxRetries` counts full loops across the source list. For example, `2` means:
+try every configured source once, loop back and try them all a second time, then stop.
+A value of `0` retries indefinitely.
 
 ```js
 const player = videojs('video-player');

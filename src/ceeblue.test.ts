@@ -200,6 +200,23 @@ describe('CeeblueVideoJSPlugin', () => {
     expect(plugin.currentSource?.sourceType).toBe('hls');
   });
 
+  it('should replace options without recreating the player', async () => {
+    const sourceChanged = new Promise<void>((resolve) => {
+      player.one('sourcechanged', () => {
+        resolve();
+      });
+    });
+
+    plugin.replaceOptions({
+      ...testOptions,
+      protocols: ['dash', 'hls']
+    });
+
+    await withTimeout(sourceChanged, 5000, 'Options replace timeout');
+
+    expect(plugin.currentSource?.sourceType).toBe('dash');
+  });
+
   it('should start playing when play() is called after user interaction', async () => {
     await withTimeout(player.play(), 5000, 'Play timeout');
 
@@ -252,5 +269,72 @@ describe('CeeblueVideoJSPlugin', () => {
 
     playSpy.mockRestore();
     scheduleRetrySpy.mockRestore();
+  });
+
+  it('should stop fallback after the configured number of full source loops', () => {
+    player.dispose();
+    createPlayer({
+      ...testOptions,
+      autoFallback: true,
+      maxRetries: 2,
+      protocols: ['wrts', 'webrtc', 'llhls', 'hls', 'dash']
+    });
+
+    const setSourceSpy = vi.spyOn(plugin as never as { _setSource: (source: unknown) => void }, '_setSource')
+      .mockImplementation(() => undefined);
+    const stopSpy = vi.spyOn(plugin, 'stop');
+
+    plugin._trySource();
+    plugin._trySource();
+    plugin._trySource();
+    plugin._trySource();
+    plugin._trySource();
+    plugin._trySource();
+    plugin._trySource();
+    plugin._trySource();
+    plugin._trySource();
+    plugin._trySource();
+
+    expect(setSourceSpy).toHaveBeenCalledTimes(9);
+    expect(stopSpy).toHaveBeenCalledTimes(1);
+
+    setSourceSpy.mockRestore();
+    stopSpy.mockRestore();
+  });
+
+  it('should retry indefinitely when maxRetries is 0', () => {
+    player.dispose();
+    createPlayer({
+      ...testOptions,
+      autoFallback: true,
+      maxRetries: 0,
+      protocols: ['wrts', 'webrtc']
+    });
+
+    const setSourceSpy = vi.spyOn(plugin as never as { _setSource: (source: unknown) => void }, '_setSource')
+      .mockImplementation(() => undefined);
+    const stopSpy = vi.spyOn(plugin, 'stop');
+
+    plugin._trySource();
+    plugin._trySource();
+    plugin._trySource();
+    plugin._trySource();
+    plugin._trySource();
+
+    expect(setSourceSpy).toHaveBeenCalledTimes(5);
+    expect(stopSpy).not.toHaveBeenCalled();
+
+    setSourceSpy.mockRestore();
+    stopSpy.mockRestore();
+  });
+
+  it('should emit sourcechanged with no source when stop is called', () => {
+    const sourceChangedSpy = vi.fn();
+
+    player.on('sourcechanged', sourceChangedSpy);
+    plugin.stop();
+
+    expect(sourceChangedSpy).toHaveBeenCalledTimes(1);
+    expect(sourceChangedSpy.mock.calls[0]?.[0]?.details?.source).toBeUndefined();
   });
 });
