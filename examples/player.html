@@ -794,18 +794,22 @@
         },
         bindPlayerEvents() {
           this.bindTechEvents();
-          player.eme.detectSupportedCDMs()
-          .then(supportedCDMs => {
-            // Sample output: {fairplay: false, playready: false, widevine: true, clearkey: true}
-            console.log('supportedCDMs :', supportedCDMs);
-            this.supportedCDMs = supportedCDMs;
-          });
 
           player.on('sourcechanged', (event) => {
             const source = event.details.source;
 
             console.log('sourcechanged', source);
             console.log('source keySystems', source?.keySystems);
+
+            if (typeof player.eme === 'object' && !this.supportedCDMs) {
+              player.eme.detectSupportedCDMs()
+              .then(supportedCDMs => {
+                // Sample output: {fairplay: false, playready: false, widevine: true, clearkey: true}
+                console.log('supportedCDMs :', supportedCDMs);
+                this.supportedCDMs = supportedCDMs;
+              });
+            }
+
             this.currentSourceEncrypted = false;
             this.currentSourceKeySystems = source?.keySystems || null;
             this.activeCDM = '';
@@ -875,13 +879,6 @@
             player.ceeblue().replaceOptions(ceeblueOptions);
           } else {
             player = videojs(this.$refs.videoPlayer, this.playerOptions);
-            console.log('EME plugin', {
-              playerEmeType: typeof player.eme,
-              plugin: typeof videojs.getPlugin === 'function' ? videojs.getPlugin('eme') : null
-            });
-            if (typeof player.eme === 'function') {
-              player.eme();
-            }
             this.bindPlayerEvents();
           }
         },
