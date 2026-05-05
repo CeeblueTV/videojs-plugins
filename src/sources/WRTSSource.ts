@@ -3,198 +3,11 @@ import { Player as WRTSPlayer, type CMCD, type CMCDMode, type Metadata, type Pla
 import { WRTSTracksController } from '../controllers/WRTSTracksController';
 import type Tech from 'video.js/dist/types/tech/tech';
 import type Player from 'video.js/dist/types/player';
-import type { CeeblueDRMKeySystems, CeeblueWRTSCMCD, CeeblueWRTSCMCDMode, VideojsWRTSSourceObject } from './sources';
+import { enrichWRTSKeySystemsWithMetadata, type PlayerWithEME } from './WRTSDRM';
+import type { CeeblueWRTSCMCD, CeeblueWRTSCMCDMode, VideojsWRTSSourceObject } from './sources';
 
 export type WRTSSourceOptions = {
   readonly playerId: string;
-}
-
-type VideojsEMEOptions = {
-  keySystems?: CeeblueDRMKeySystems;
-};
-
-type VideojsEMEPlugin = {
-  options?: Record<string, unknown>;
-  initializeMediaKeys?: (
-    options: VideojsEMEOptions,
-    callback?: (error?: unknown) => void,
-    suppressErrorsIfPossible?: boolean
-  ) => void;
-};
-
-type PlayerWithEME = Player & {
-  eme?: VideojsEMEPlugin | ((options?: VideojsEMEOptions) => void);
-};
-
-type DRMContentTypes = {
-  audioContentTypes: string[];
-  videoContentTypes: string[];
-};
-
-const DRM_SYSTEM_IDS = {
-  'com.microsoft.playready': '9a04f07998404286ab92e65be0885f95',
-  'com.widevine.alpha': 'edef8ba979d64acea3c827dcd51d21ed'
-} as const;
-
-type MutableDRMKeySystemConfiguration = Record<string, unknown>;
-
-function isFairPlayKeySystem(keySystem: string) {
-  return keySystem.startsWith('com.apple.fps');
-}
-
-function toContentTypeValue(contentTypes: string[]) {
-  if (!contentTypes.length) {
-    return undefined;
-  }
-
-  return contentTypes.length === 1 ? contentTypes[0] : contentTypes;
-}
-
-function getEncryptedContentTypes(metadata: Metadata): DRMContentTypes {
-  const audioContentTypes = new Set<string>();
-  const videoContentTypes = new Set<string>();
-
-  for (const track of metadata.audioTracks) {
-    if (!track.contentProtection || !track.codecString) {
-      continue;
-    }
-
-    audioContentTypes.add(`audio/mp4; codecs="${track.codecString}"`);
-  }
-
-  for (const track of metadata.videoTracks) {
-    if (!track.contentProtection || !track.codecString) {
-      continue;
-    }
-
-    videoContentTypes.add(`video/mp4; codecs="${track.codecString}"`);
-  }
-
-  return {
-    audioContentTypes: Array.from(audioContentTypes),
-    videoContentTypes: Array.from(videoContentTypes)
-  };
-}
-
-function getPsshForKeySystem(keySystem: string, metadata: Metadata) {
-  const drmSystemId = DRM_SYSTEM_IDS[keySystem as keyof typeof DRM_SYSTEM_IDS];
-
-  if (!drmSystemId) {
-    return undefined;
-  }
-
-  for (const [, contentProtection] of metadata.contentProtection) {
-    const pssh = contentProtection.pssh.get(drmSystemId);
-
-    if (pssh) {
-      return Uint8Array.from(atob(pssh), c => c.charCodeAt(0) || 0);
-    }
-  }
-
-  return undefined;
-}
-
-function normalizeKeySystemConfiguration(
-  keySystem: string,
-  keySystemConfig: string | MutableDRMKeySystemConfiguration,
-  metadataSettings: {
-    audioContentType?: string | string[];
-    videoContentType?: string | string[];
-    pssh?: Uint8Array;
-  }
-) {
-  // FairPlay uses its own certificate/license flow and does not need WRTS-specific metadata enrichment.
-  if (isFairPlayKeySystem(keySystem)) {
-    return keySystemConfig;
-  }
-
-  if (typeof keySystemConfig === 'string') {
-    const normalizedConfig: MutableDRMKeySystemConfiguration = {
-      url: keySystemConfig
-    };
-
-    if (metadataSettings.pssh) {
-      normalizedConfig.pssh = metadataSettings.pssh;
-    }
-
-    if (metadataSettings.audioContentType) {
-      normalizedConfig.audioContentType = metadataSettings.audioContentType;
-    }
-
-    if (metadataSettings.videoContentType) {
-      normalizedConfig.videoContentType = metadataSettings.videoContentType;
-    }
-
-    return normalizedConfig;
-  }
-
-  const normalizedConfig: MutableDRMKeySystemConfiguration = {
-    ...keySystemConfig
-  };
-
-  // The external EME flow expects `url`, while our public API also accepts `licenseUri`.
-  if (typeof normalizedConfig.licenseUri === 'string' && typeof normalizedConfig.url !== 'string') {
-    normalizedConfig.url = normalizedConfig.licenseUri;
-  }
-
-  if (normalizedConfig.audioContentType === undefined && metadataSettings.audioContentType) {
-    normalizedConfig.audioContentType = metadataSettings.audioContentType;
-  }
-
-  if (normalizedConfig.videoContentType === undefined && metadataSettings.videoContentType) {
-    normalizedConfig.videoContentType = metadataSettings.videoContentType;
-  }
-
-  // Reusing the manifest PSSH keeps the WRTS EME path close to the LL-HLS/VHS flow.
-  if (normalizedConfig.pssh === undefined && metadataSettings.pssh) {
-    normalizedConfig.pssh = metadataSettings.pssh;
-  }
-
-  return normalizedConfig;
-}
-
-export function enrichWRTSKeySystemsWithMetadata(
-  keySystems: CeeblueDRMKeySystems | undefined,
-  metadata: Metadata
-): CeeblueDRMKeySystems | undefined {
-  if (!keySystems) {
-    return keySystems;
-  }
-
-  const { audioContentTypes, videoContentTypes } = getEncryptedContentTypes(metadata);
-  const audioContentType = toContentTypeValue(audioContentTypes);
-  const videoContentType = toContentTypeValue(videoContentTypes);
-
-  videojs.log('WRTS metadata encrypted content types', {
-    audioContentType,
-    videoContentType
-  });
-
-  if (!audioContentType && !videoContentType) {
-    return keySystems;
-  }
-
-  const enrichedKeySystems: CeeblueDRMKeySystems = {};
-
-  for (const keySystem in keySystems) {
-    const keySystemConfig = keySystems[keySystem];
-
-    if (keySystemConfig === undefined) {
-      continue;
-    }
-
-    enrichedKeySystems[keySystem] = normalizeKeySystemConfiguration(
-      keySystem,
-      keySystemConfig,
-      {
-        audioContentType,
-        videoContentType,
-        pssh: getPsshForKeySystem(keySystem, metadata)
-      }
-    );
-  }
-
-  return enrichedKeySystems;
 }
 
 /**
@@ -322,14 +135,7 @@ export class WRTSSource {
       cmcdSid: source.cmcdSid
     };
 
-    if (source.bufferLimitLow !== undefined) {
-      this.wrtsPlayer.bufferLimitLow = source.bufferLimitLow;
-    }
-
-    if (source.bufferLimitHigh !== undefined) {
-      this.wrtsPlayer.bufferLimitHigh = source.bufferLimitHigh;
-    }
-
+    this._applyStaticSourceSettings(source);
     this.wrtsPlayer.onStart = this._handleStart.bind(this);
     this.wrtsPlayer.onStop = this._handleStop.bind(this);
     this.wrtsPlayer.onMetadata = this._handleMetadata.bind(this);
@@ -366,6 +172,10 @@ export class WRTSSource {
    * @param metadata Metadata of the WRTS stream
    */
   private _prepareEMEConfiguration(metadata: Metadata) {
+    if (!metadata.contentProtection.size) {
+      return;
+    }
+
     const keySystems = enrichWRTSKeySystemsWithMetadata(this._source.keySystems, metadata);
 
     if (!keySystems) {
@@ -412,7 +222,19 @@ export class WRTSSource {
     );
   }
 
+  private _applyStaticSourceSettings(source: VideojsWRTSSourceObject) {
+    if (source.bufferLimitLow !== undefined) {
+      this.wrtsPlayer.bufferLimitLow = source.bufferLimitLow;
+    }
+
+    if (source.bufferLimitHigh !== undefined) {
+      this.wrtsPlayer.bufferLimitHigh = source.bufferLimitHigh;
+    }
+  }
+
   private _applyPendingRuntimeSettings() {
+    // These options may be set before the WRTS player reports `onStart`, so we re-apply
+    // the latest values once the internal transport is fully initialized.
     if (this._pendingRuntimeSettings.reliable !== undefined) {
       this.wrtsPlayer.reliable = this._pendingRuntimeSettings.reliable;
     }
