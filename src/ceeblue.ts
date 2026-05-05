@@ -8,11 +8,16 @@ import type { QualityButtonPlugin } from './qualityButton';
 
 const Plugin = videojs.getPlugin('plugin') as unknown as typeof PluginType;
 
+type EMEPluginState = {
+  activeSrc?: string | null;
+  sessions?: unknown[];
+};
+
 // Extend the Player type to include qualityLevels
 type PlayerWithQualityLevels = Player & {
   qualityLevels: () => QualityLevelList | undefined;
   qualityButton?: () => QualityButtonPlugin;
-  eme?: (options?: Record<string, unknown>) => void;
+  eme?: (((options?: Record<string, unknown>) => void) & EMEPluginState) | EMEPluginState;
 };
 
 // Replaced with the plugin's version during the build process.
@@ -450,6 +455,15 @@ export class CeeblueVideoJSPlugin extends Plugin {
     this._clearRetryTimeout();
     this._completedLoopCount = 0;
     this._reset();
+
+    const eme = this._player.eme;
+
+    // contrib-eme keeps runtime state on the player after initialization, so we
+    // clear it manually to allow replaying the same DRM source after stop().
+    if (eme && typeof eme === 'object') {
+      eme.activeSrc = null;
+      eme.sessions = [];
+    }
   }
 
   private _isRequestActive(requestId: number) {

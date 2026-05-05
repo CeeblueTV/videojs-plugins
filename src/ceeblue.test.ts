@@ -337,4 +337,38 @@ describe('CeeblueVideoJSPlugin', () => {
     expect(sourceChangedSpy).toHaveBeenCalledTimes(1);
     expect(sourceChangedSpy.mock.calls[0]?.[0]?.details?.source).toBeUndefined();
   });
+
+  it('should ignore pre-init contrib-eme functions on stop', () => {
+    const eme = vi.fn() as typeof player.eme & {
+      activeSrc?: string | null;
+      sessions?: unknown[];
+    };
+
+    eme.activeSrc = 'https://example.test/drm.m3u8';
+    eme.sessions = [{ sessionId: '1' }];
+    player.eme = eme;
+
+    plugin.stop();
+
+    expect(eme.activeSrc).toBe('https://example.test/drm.m3u8');
+    expect(eme.sessions).toEqual([{ sessionId: '1' }]);
+  });
+
+  it('should clear contrib-eme runtime state on stop after eme initialization', () => {
+    player.eme = {
+      activeSrc: 'https://example.test/drm.m3u8',
+      sessions: [{ sessionId: '1' }]
+    };
+
+    plugin.stop();
+
+    expect(player.eme?.activeSrc).toBeNull();
+    expect(player.eme?.sessions).toEqual([]);
+  });
+
+  it('should stop safely when contrib-eme is unavailable', () => {
+    player.eme = undefined;
+
+    expect(() => plugin.stop()).not.toThrow();
+  });
 });

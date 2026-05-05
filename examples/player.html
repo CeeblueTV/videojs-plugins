@@ -833,14 +833,6 @@
             this.updateQualityFromLevels();
           });
 
-          player.on('playing', () => {
-            this.syncPlaybackState(PlayState.PLAYING);
-          });
-
-          player.on('ended', () => {
-            this.syncPlaybackState(PlayState.STOPPED);
-          });
-
           if (typeof player.qualityLevels === 'function') {
             const qualityLevels = player.qualityLevels();
 
