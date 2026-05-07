@@ -50,4 +50,42 @@ describe('QualityButtonPlugin', () => {
     // @ts-expect-error - controlBar type is missing.
     expect(player.controlBar.getChild('QualityMenuButton')).toBeDefined();
   });
+
+  it('should show the active quality in the button label and fall back to the icon otherwise', () => {
+    player.qualityButton();
+    const qualityLevels = player.qualityLevels();
+
+    expect(qualityLevels).toBeDefined();
+
+    // @ts-expect-error - controlBar type is missing.
+    const qualityButton = player.controlBar.getChild('QualityMenuButton');
+    const buttonEl = qualityButton?.el();
+
+    expect(buttonEl?.classList.contains('vjs-quality-button--has-label')).toBe(false);
+    expect(buttonEl?.querySelector('.vjs-quality-button-label')?.textContent).toBe('');
+
+    qualityLevels?.addQualityLevel({
+      id: 'high',
+      width: 1280,
+      height: 720,
+      bandwidth: 3000000,
+      enabled: () => true
+    });
+
+    qualityLevels?.addQualityLevel({
+      id: 'low',
+      width: 854,
+      height: 480,
+      bandwidth: 1200000,
+      enabled: () => true
+    });
+
+    if (qualityLevels) {
+      qualityLevels.selectedIndex_ = 0;
+      qualityLevels.trigger({ selectedIndex: qualityLevels.selectedIndex_, type: 'change' });
+    }
+
+    expect(buttonEl?.classList.contains('vjs-quality-button--has-label')).toBe(true);
+    expect(buttonEl?.querySelector('.vjs-quality-button-label')?.textContent).toBe('720p');
+  });
 });

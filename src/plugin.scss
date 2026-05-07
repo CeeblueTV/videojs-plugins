@@ -7,6 +7,33 @@
   content: '\f10d';
 }
 
+.vjs-quality-button button.vjs-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vjs-quality-button .vjs-quality-button-label {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.5em;
+  height: 100%;
+  padding: 0 0.5em;
+  font-size: 0.85em;
+  font-weight: 600;
+  line-height: 1;
+  text-transform: none;
+}
+
+.vjs-quality-button.vjs-quality-button--has-label .vjs-icon-placeholder {
+  display: none;
+}
+
+.vjs-quality-button.vjs-quality-button--has-label .vjs-quality-button-label {
+  display: flex;
+}
+
 .vjs-source-button button.vjs-button {
   display: flex;
   align-items: center;

@@ -25,6 +25,7 @@ export class QualityMenuButton extends MenuButton {
    * QualityMenuButton component options.
    */
   options_: QualityMenuButtonOptions;
+  private labelEl_: HTMLElement | null = null;
 
   /**
    * Keep a ref to the selected quality level.
@@ -49,6 +50,21 @@ export class QualityMenuButton extends MenuButton {
     // This is probably not needed as it should get assigned by the parent class.
     // Just to be sure :)
     this.options_ = options;
+
+    this.labelEl_ = videojs.dom.createEl('span', {
+      className: 'vjs-quality-button-label'
+    });
+
+    const menuButtonEl = this.menuButton_.el();
+    const controlTextEl = menuButtonEl.querySelector('.vjs-control-text');
+
+    if (controlTextEl) {
+      menuButtonEl.insertBefore(this.labelEl_, controlTextEl);
+    } else {
+      menuButtonEl.appendChild(this.labelEl_);
+    }
+
+    this._updateLabel();
   }
 
   /**
@@ -84,7 +100,7 @@ export class QualityMenuButton extends MenuButton {
       const isCurrentQuality = i === this.options_.qualities.selectedIndex;
 
       const trackItem = this._createMenuItem({
-        label: quality.height + 'p' + (isAuto && isCurrentQuality ? ' ✓' : ''),
+        label: this._getQualityLabel(quality) + (isAuto && isCurrentQuality ? ' ✓' : ''),
         value: quality.id,
         // Note: with VHS quality.enable can be false even if it is the selected quality
         selected: !isAuto && quality.enabled,
@@ -95,6 +111,14 @@ export class QualityMenuButton extends MenuButton {
     }
 
     return menuItems;
+  }
+
+  /**
+   * Update the menu and the main button label.
+   */
+  update() {
+    super.update();
+    this._updateLabel();
   }
 
   /**
@@ -159,6 +183,48 @@ export class QualityMenuButton extends MenuButton {
   }
 
   /**
+   * Create a readable label for the provided quality level.
+   */
+  private _getQualityLabel(quality: QualityLevel): string {
+    if (quality.label && quality.label !== quality.id) {
+      return String(quality.label);
+    }
+
+    if (quality.height) {
+      return quality.height + 'p';
+    }
+
+    if (quality.width && quality.height) {
+      return quality.width + 'x' + quality.height;
+    }
+
+    return String(quality.id);
+  }
+
+  /**
+   * Update the main button label to the currently active rendition.
+   */
+  private _updateLabel() {
+    if (!this.labelEl_) {
+      return;
+    }
+
+    const selectedIndex = this.options_.qualities.selectedIndex;
+    const selectedQuality = selectedIndex >= 0
+      // @ts-expect-error - QualityLevels is missing ArrayLike Type
+      ? this.options_.qualities[selectedIndex] as QualityLevel | undefined
+      : void 0;
+
+    this.labelEl_.textContent = selectedQuality ? this._getQualityLabel(selectedQuality) : '';
+
+    if (selectedQuality) {
+      this.addClass('vjs-quality-button--has-label');
+    } else {
+      this.removeClass('vjs-quality-button--has-label');
+    }
+  }
+
+  /**
    * Handle click on the menu button
    */
   handleClick() {
@@ -168,6 +234,11 @@ export class QualityMenuButton extends MenuButton {
     } else {
       this.pressButton();
     }
+  }
+
+  override dispose() {
+    this.labelEl_ = null;
+    super.dispose();
   }
 }
 
