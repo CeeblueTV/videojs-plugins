@@ -138,14 +138,6 @@
       </div>
 
       <div class="col-md-12 mt-4" id="main">
-        <div class="col-12">
-          <ul class="nav nav-pills nav-fill">
-            <li v-for="value in sources" class="nav-item">
-              <a class="nav-link" href="#" :class="{ active: value == source}" v-on:click.stop.prevent="changeSource">{{ value }}</a>
-            </li>
-          </ul>
-        </div>
-
         <div class="card text-center border-0">
           <div class="card-body">
             <video ref="videoPlayer" class="video-js vjs-default-skin vjs-fluid" playsinline controls autoplay></video>
@@ -602,6 +594,7 @@
                 streamName: this.streamName,
                 accessToken: this.accessToken || void 0,
                 maxRetries: Number.parseInt(this.retryCount, 10) || 1,
+                sourceButton: true,
                 enableQualityOptions: !!this.videobutton,
                 protocols: this.buildProtocols(selectedSource),
                 query: this.buildQueryParams(),
@@ -921,16 +914,6 @@
           }
 
           player.ceeblue().stop();
-        },
-        changeSource(e) {
-          this.selectedSource = e.target.text;
-          if (this.source == e.target.text)
-            return;
-          if (!player) {
-            this.startPlayback(e.target.text);
-          } else {
-            player.ceeblue().setSource({ protocol: e.target.text });
-          }
         },
         play() {
           if(this.playState === PlayState.STOPPED) {

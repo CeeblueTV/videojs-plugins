@@ -5,6 +5,8 @@ import { expandSourcesToVideoJSSources, protocols, type CeeblueSourcesOptions, t
 import type QualityLevelList from 'videojs-contrib-quality-levels/dist/types/quality-level-list';
 import type { Event } from 'video.js/dist/types/event-target';
 import type { QualityButtonPlugin } from './qualityButton';
+import type { SourceMenuButton } from './components/SourceMenuButton';
+import './components/SourceMenuButton';
 
 const Plugin = videojs.getPlugin('plugin') as unknown as typeof PluginType;
 
@@ -36,6 +38,13 @@ export type CeeblueVideoJSPluginOptions = CeeblueSourcesOptions & {
    * @default true
    */
   autoFallback?: boolean;
+  /**
+   * Determines if the source selection button should be enabled in the UI.
+   * The button is only shown when more than one protocol is available.
+   *
+   * @default false
+   */
+  sourceButton?: boolean;
   /**
    * Maximum number of full source-list loops before stopping fallback.
    * A value of 0 means retry indefinitely.
@@ -100,8 +109,10 @@ export class CeeblueVideoJSPlugin extends Plugin {
   private _completedLoopCount: number = 0;
   private _retryTimeout: ReturnType<typeof setTimeout> | null = null;
   private _qualityUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _sourceButton?: SourceMenuButton | void;
   private _suspendFallback = false;
   private _isStopped = false;
+  private _autoFallbackEnabled = true;
   private _sourceRequestId = 0;
 
   /**
@@ -122,6 +133,11 @@ export class CeeblueVideoJSPlugin extends Plugin {
     player.on('error', this._handleError.bind(this));
     player.on('ended', this._handleEnded.bind(this));
     player.on('loadedmetadata', this._handleLoadedMetadata.bind(this));
+    player.ready(() => {
+      if (!this._player.isDisposed()) {
+        this._updateSourceButton();
+      }
+    });
 
     // Use the same guarded startup path as later source switches, but delay
     // slightly so listeners registered right after player creation can still
@@ -153,6 +169,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
 
     this._options = options;
     this._sources = sources;
+    this._autoFallbackEnabled = options.autoFallback ?? true;
   }
 
   /**
@@ -179,6 +196,13 @@ export class CeeblueVideoJSPlugin extends Plugin {
    */
   get availableProtocols(): string[] {
     return [...new Set(this._sources.map(source => source.sourceType || ''))].filter(Boolean);
+  }
+
+  /**
+   * Determines if runtime auto fallback is currently enabled.
+   */
+  get isAutoFallbackEnabled() {
+    return this._autoFallbackEnabled;
   }
 
   /**
@@ -239,7 +263,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
       videojs.log('Failed to play source', source, error);
 
       // If play fails, try the next source after grace period
-      if (this._options.autoFallback) {
+      if (this._autoFallbackEnabled) {
         this._scheduleRetry();
       }
     } finally {
@@ -273,7 +297,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
     }
 
     // If auto fallback is enabled, try the next source
-    if (this._options.autoFallback) {
+    if (this._autoFallbackEnabled) {
       this._trySource();
     }
   }
@@ -287,7 +311,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
     }
 
     // If auto fallback is enabled, try the next source
-    if (this._options.autoFallback) {
+    if (this._autoFallbackEnabled) {
       this._trySource();
     }
   }
@@ -322,6 +346,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
    * @param source the source to play or null if no more source is available
    */
   _handleSourceChanged(source?: VideojsSourceObject) {
+    this._updateSourceButton();
     this._player.trigger({
       type: 'sourcechanged',
       details: { source }
@@ -423,8 +448,21 @@ export class CeeblueVideoJSPlugin extends Plugin {
 
     this._completedLoopCount = 0;
     this._currentSourceIndex = index;
+    this._autoFallbackEnabled = false;
+    this._updateSourceButton();
 
     this._setSource(source);
+  }
+
+  /**
+   * Enable or disable runtime auto fallback without changing the active source.
+   *
+   * @param enabled Whether auto fallback should be active.
+   */
+  setAutoFallback(enabled: boolean) {
+    this._autoFallbackEnabled = enabled;
+    this._completedLoopCount = 0;
+    this._updateSourceButton();
   }
 
   /**
@@ -439,6 +477,7 @@ export class CeeblueVideoJSPlugin extends Plugin {
     this._completedLoopCount = 0;
     this._setOptions(options);
     this._currentSourceIndex = 0;
+    this._updateSourceButton();
 
     const source = this._sources[this._currentSourceIndex];
 
@@ -477,6 +516,42 @@ export class CeeblueVideoJSPlugin extends Plugin {
     }
   }
 
+  private _updateSourceButton() {
+    // @ts-expect-error - controlBar type is missing.
+    const controlBar = this._player.controlBar;
+
+    if (!controlBar) {
+      return;
+    }
+
+    if (!this._options.sourceButton || this.availableProtocols.length <= 1) {
+      if (this._sourceButton) {
+        controlBar.removeChild(this._sourceButton);
+        this._sourceButton = undefined;
+      }
+
+      return;
+    }
+
+    if (!this._sourceButton) {
+      const sourceButtonOptions = {
+        title: 'Source',
+        plugin: this
+      };
+      const audioTrackButton = controlBar.getChild('audioTrackButton');
+
+      if (audioTrackButton) {
+        const audioTrackIndex = controlBar.children().indexOf(audioTrackButton);
+
+        this._sourceButton = controlBar.addChild('SourceMenuButton', sourceButtonOptions, audioTrackIndex) as unknown as SourceMenuButton;
+      } else {
+        this._sourceButton = controlBar.addChild('SourceMenuButton', sourceButtonOptions) as unknown as SourceMenuButton;
+      }
+    }
+
+    this._sourceButton.update();
+  }
+
   /**
    * Clean up any pending timeouts
    */
@@ -486,6 +561,15 @@ export class CeeblueVideoJSPlugin extends Plugin {
     }
     if (this._qualityUpdateTimeout) {
       clearTimeout(this._qualityUpdateTimeout);
+    }
+    if (this._sourceButton) {
+      // @ts-expect-error - controlBar type is missing.
+      const controlBar = this._player.controlBar;
+
+      if (controlBar) {
+        controlBar.removeChild(this._sourceButton);
+      }
+      this._sourceButton = undefined;
     }
     super.dispose();
   }

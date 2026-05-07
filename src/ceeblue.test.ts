@@ -217,6 +217,93 @@ describe('CeeblueVideoJSPlugin', () => {
     expect(plugin.currentSource?.sourceType).toBe('dash');
   });
 
+  it('should add a source button when enabled with multiple protocols', async () => {
+    player.dispose();
+    createPlayer({
+      ...testOptions,
+      sourceButton: true,
+      protocols: ['webrtc', 'hls']
+    });
+
+    await withTimeout(new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    }), 5000, 'Source button timeout');
+
+    // @ts-expect-error - controlBar type is missing.
+    const sourceButton = player.controlBar.getChild('SourceMenuButton');
+
+    expect(sourceButton).toBeDefined();
+  });
+
+  it('should hide the source button when there is only one protocol', () => {
+    player.dispose();
+    createPlayer({
+      ...testOptions,
+      sourceButton: true,
+      protocols: ['hls']
+    });
+
+    // @ts-expect-error - controlBar type is missing.
+    const sourceButton = player.controlBar.getChild('SourceMenuButton');
+
+    expect(sourceButton).toBeUndefined();
+  });
+
+  it('should disable auto fallback when a protocol is selected manually', () => {
+    player.dispose();
+    createPlayer({
+      ...testOptions,
+      autoFallback: true,
+      protocols: ['webrtc', 'hls']
+    });
+
+    plugin.setSource({ protocol: 'hls' });
+
+    expect(plugin.isAutoFallbackEnabled).toBe(false);
+    expect(plugin.currentSource?.sourceType).toBe('hls');
+  });
+
+  it('should re-enable auto fallback without changing the active source', () => {
+    player.dispose();
+    createPlayer({
+      ...testOptions,
+      autoFallback: true,
+      protocols: ['webrtc', 'hls']
+    });
+
+    plugin.setSource({ protocol: 'hls' });
+    plugin.setAutoFallback(true);
+
+    expect(plugin.isAutoFallbackEnabled).toBe(true);
+    expect(plugin.currentSource?.sourceType).toBe('hls');
+  });
+
+  it('should update the source button label when the active protocol changes', async () => {
+    player.dispose();
+    createPlayer({
+      ...testOptions,
+      sourceButton: true,
+      protocols: ['wrts', 'hls']
+    });
+
+    await withTimeout(new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    }), 5000, 'Source button init timeout');
+
+    const sourceChanged = new Promise<void>((resolve) => {
+      player.one('sourcechanged', () => {
+        resolve();
+      });
+    });
+
+    plugin.setSource({ protocol: 'hls' });
+    await withTimeout(sourceChanged, 5000, 'Source label update timeout');
+
+    const sourceLabel = player.el()?.querySelector('.vjs-source-button-label');
+
+    expect(sourceLabel?.textContent).toBe('HLS');
+  });
+
   it('should start playing when play() is called after user interaction', async () => {
     await withTimeout(player.play(), 5000, 'Play timeout');
 

@@ -42,6 +42,7 @@ This plugin contains:
   - [Source Events](#source-events)
   - [DRM for HLS and DASH](#drm-for-hls-and-dash)
   - [Disabling QualityButton](#disabling-qualitybutton)
+  - [Enabling SourceButton](#enabling-sourcebutton)
 - [Examples](#examples)
 - [Documentation](#documentation)
 - [Contribution](#contribution)
@@ -353,6 +354,7 @@ You can force a protocol or source index at runtime:
 ```js
 player.ceeblue().setSource({ protocol: 'dash' });
 player.ceeblue().setSource(0);
+player.ceeblue().setAutoFallback(true);
 ```
 
 ### DRM for HLS, DASH and WRTS
@@ -457,6 +459,24 @@ const player = videojs(videoEl, {
       endPoint: '<host>',
       streamName: '<streamName>',
       enableQualityOptions: false
+    }
+  }
+});
+```
+
+### Enabling SourceButton
+
+Set `sourceButton: true` to add a source selector to the Video.js control bar. It shows the currently active protocol on the button itself, lets viewers lock playback to a specific protocol, and includes an `AUTO` item to re-enable protocol fallback.
+
+The button is automatically hidden when there is only one available protocol.
+
+```javascript
+const player = videojs(videoEl, {
+  plugins: {
+    ceeblue: {
+      endPoint: '<host>',
+      streamName: '<streamName>',
+      sourceButton: true
     }
   }
 });
