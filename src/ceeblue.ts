@@ -229,8 +229,21 @@ export class CeeblueVideoJSPlugin extends Plugin {
         return;
       }
 
-      // Reset the player state
+      // Reset the player state.
+      // Workaround for a video.js quirk: clicking on controlBar sets options_.inactivityTimeout to 0
+      // Snapshot the cached value first and restore it after reset.
+      const player = this._player as Player & {
+        cache_?: { inactivityTimeout?: number };
+        options_: { inactivityTimeout?: number };
+      };
+      const cachedInactivityTimeout = player.cache_?.inactivityTimeout;
+
       this._player.reset();
+
+      if (cachedInactivityTimeout && player.cache_) {
+        player.cache_.inactivityTimeout = cachedInactivityTimeout;
+        player.options_.inactivityTimeout = cachedInactivityTimeout;
+      }
 
       if (!this._isRequestActive(requestId)) {
         return;
