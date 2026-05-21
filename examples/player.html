@@ -8,13 +8,16 @@
     <title>Ceeblue Videojs Player</title>
     <meta charset="utf-8">
     <meta content="Ceeblue" name="author">
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport">
+    <meta name="color-scheme" content="light dark">
 
     <link href="assets/ceeblue-logo-32x32.png" rel="icon" sizes="32x32">
     <link href="assets/ceeblue-logo-192x192.png" rel="icon" sizes="192x192">
 
-    <link crossorigin="anonymous" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
-      integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
     <link crossorigin="anonymous" href="https://use.fontawesome.com/releases/v5.1.0/css/solid.css"
       integrity="sha384-TbilV5Lbhlwdyc4RuIV/JhD8NR+BfMrvz4BL5QFa2we1hQu6wvREr3v6XSRfCTRp" rel="stylesheet">
     <link crossorigin="anonymous" href="https://use.fontawesome.com/releases/v5.1.0/css/fontawesome.css"
@@ -22,276 +25,1100 @@
     <link href="https://cdn.jsdelivr.net/npm/video.js@8.22.0/dist/video-js.min.css" rel="stylesheet">
     <link href="../dist/videojs-plugins.css" rel="stylesheet">
 
+    <script>
+      (function () {
+        var stored = localStorage.getItem('vjs-ceeblue-theme') || 'light';
+        document.documentElement.dataset.theme = stored === 'dark' ? 'dark' : 'light';
+      })();
+    </script>
+
     <style>
-    body {
-      margin-top: 1em;
-      margin-bottom: 3em;
-    }
+      /* ── Design tokens ── */
+      :root {
+        --accent:   #78b5bf;
+        --accent-b: #5e97a1;
+        --accent-d: rgba(120,181,191,.18);
 
-    .panel-tab__content {
-      min-height: 12rem;
-    }
+        --ok:   #28a745;
+        --warn: #e6a817;
+        --err:  #c0392b;
 
-    .nav-tabs .nav-link {
-      color: #495057;
-    }
+        --r-sm:   6px;
+        --r-md:   12px;
+        --r-lg:   16px;
+        --r-pill: 999px;
 
-    .nav-tabs .nav-link:not(.active) {
-      color: #495057;
-      background-color: transparent;
-      border-color: transparent;
-    }
+        --f-body: 'Poppins', system-ui, sans-serif;
+        --f-mono: 'JetBrains Mono', ui-monospace, monospace;
 
-    .nav-tabs .nav-link:not(.active):hover,
-    .nav-tabs .nav-link:not(.active):focus {
-      color: #212529;
-      border-color: transparent;
-    }
-
-    .tab-badge {
-      margin-left: 0.35rem;
-    }
-
-    .messages-panel {
-      min-height: 12rem;
-      max-height: 18rem;
-      white-space: pre;
-      font-family: monospace;
-      font-size: 0.9rem;
-      overflow-x: auto;
-      overflow-y: auto;
-    }
-
-    [v-cloak] {
-      display: none;
-    }
-
-    .drm-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.4rem 0.7rem;
-      border-radius: 999px;
-      background: linear-gradient(135deg, #0f172a, #1e293b);
-      color: #f8fafc;
-      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
-      font-size: 0.82rem;
-      line-height: 1.2;
-      white-space: nowrap;
-    }
-
-    .drm-status__label {
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-      font-size: 0.72rem;
-      color: rgba(248, 250, 252, 0.7);
-    }
-
-    .drm-status__value {
-      font-weight: 600;
-    }
-
-    .player-actions {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: center;
-      margin-top: 0.5rem;
-    }
-
-    .player-actions__center {
-      grid-column: 2;
-      justify-self: center;
-    }
-
-    .player-actions__right {
-      grid-column: 3;
-      justify-self: start;
-      margin-left: 1rem;
-    }
-
-    @media (max-width: 767.98px) {
-      .player-actions {
-        grid-template-columns: 1fr;
-        row-gap: 0.75rem;
+        --t: 160ms ease;
       }
 
-      .player-actions__center,
-      .player-actions__right {
-        grid-column: 1;
-        justify-self: center;
-        margin-left: 0;
+      html[data-theme="light"] {
+        --bg:       #ffffff;
+        --bg-s:     #f4f7fb;
+        --bg-e:     #ebeff5;
+        --bg-h:     #dde4ee;
+        --border:   rgba(103,114,148,.18);
+        --border-s: rgba(103,114,148,.38);
+        --txt:      #3d4459;
+        --txt-2:    #677294;
+        --txt-m:    #9ba4bc;
+        --navy:     #051441;
+        --shadow:   0 4px 24px rgba(61,68,89,.10);
+        --shadow-modal: 0 24px 64px rgba(5,20,65,.18);
+        --modal-back: rgba(5,20,65,.35);
       }
-    }
+
+      html[data-theme="dark"] {
+        --bg:       #0f1622;
+        --bg-s:     #161e2d;
+        --bg-e:     #1d2638;
+        --bg-h:     #283248;
+        --border:   rgba(255,255,255,.08);
+        --border-s: rgba(255,255,255,.18);
+        --txt:      #e7ecf3;
+        --txt-2:    #aab4c8;
+        --txt-m:    #6c7894;
+        --navy:     #ffffff;
+        --shadow:   0 4px 24px rgba(0,0,0,.45);
+        --shadow-modal: 0 24px 64px rgba(0,0,0,.6);
+        --modal-back: rgba(0,0,0,.55);
+      }
+
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        background: var(--bg);
+        color: var(--txt);
+        font-family: var(--f-body);
+        font-size: 13.5px;
+        line-height: 1.5;
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .shell {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 14px 14px 48px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      /* ── Header ── */
+      .hdr {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      .hdr a { display: inline-flex; align-items: center; }
+      .hdr .ceeblue-logo { height: 28px; }
+      .hdr .vjs-logo { height: 20px; opacity: .8; }
+      html[data-theme="dark"] .hdr .vjs-logo { filter: invert(1) brightness(1.1); }
+      .hdr h1 {
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: .02em;
+        color: var(--navy);
+        flex: 1;
+      }
+      .hdr h1 em { color: var(--accent); font-style: normal; }
+      .theme-btn {
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: var(--bg-s);
+        color: var(--txt-2);
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 13px;
+        transition: all var(--t);
+      }
+      .theme-btn:hover { color: var(--accent); border-color: var(--border-s); }
+
+      /* ── Video player ── */
+      .player {
+        position: relative;
+        background: #000;
+        aspect-ratio: 16/9;
+        max-height: 60vh;
+        max-width: calc(60vh * 16 / 9);
+        width: 100%;
+        margin: 0 auto;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+      .player .video-js {
+        width: 100% !important;
+        height: 100% !important;
+      }
+
+      /* Ceeblue-branded Video.js control bar */
+      .video-js .vjs-control-bar {
+        background-color: rgba(120, 181, 191, 0.85);
+        color: #ffffff;
+      }
+      .video-js .vjs-button > .vjs-icon-placeholder:before,
+      .video-js .vjs-time-control,
+      .video-js .vjs-control {
+        color: #ffffff;
+      }
+      .video-js .vjs-button:hover > .vjs-icon-placeholder:before,
+      .video-js .vjs-button:focus > .vjs-icon-placeholder:before {
+        color: #ffffff;
+        text-shadow: 0 0 8px rgba(255, 255, 255, 0.75);
+      }
+      .video-js .vjs-play-progress,
+      .video-js .vjs-play-progress:before { background-color: #78b5bf; color: #78b5bf; }
+      .video-js .vjs-load-progress { background: rgba(255, 255, 255, 0.35); }
+      .video-js .vjs-load-progress div { background: rgba(255, 255, 255, 0.55); }
+      .video-js .vjs-slider { background-color: rgba(255, 255, 255, 0.25); }
+      .video-js .vjs-volume-level { background-color: #ffffff; }
+      .video-js .vjs-big-play-button {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 84px;
+        height: 84px;
+        margin: 0;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        background: rgba(120, 181, 191, 0.78);
+        box-shadow:
+          0 0 0 2px rgba(255, 255, 255, 0.9),
+          0 12px 36px rgba(0, 0, 0, 0.4),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+        color: #ffffff;
+        font-size: 38px;
+        line-height: 84px;
+        text-align: center;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        transform: translate(-50%, -50%) scale(1);
+        transition:
+          transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
+          background 200ms ease,
+          box-shadow 200ms ease;
+      }
+      .video-js .vjs-big-play-button .vjs-icon-placeholder {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      .video-js .vjs-big-play-button .vjs-icon-placeholder:before {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        line-height: 84px;
+        text-align: center;
+        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+        padding-left: 4px; /* optical centering for the triangle */
+      }
+      .video-js:hover .vjs-big-play-button,
+      .video-js .vjs-big-play-button:focus {
+        background: rgba(120, 181, 191, 0.96);
+        box-shadow:
+          0 0 0 2px rgba(255, 255, 255, 1),
+          0 16px 48px rgba(120, 181, 191, 0.55),
+          0 0 28px rgba(120, 181, 191, 0.5),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+        transform: translate(-50%, -50%) scale(1.06);
+        outline: none;
+      }
+      .video-js .vjs-big-play-button:active {
+        transform: translate(-50%, -50%) scale(0.96);
+        transition-duration: 100ms;
+      }
+      .video-js .vjs-menu-content,
+      .video-js .vjs-menu-button-popup .vjs-menu .vjs-menu-content {
+        background-color: rgba(120, 181, 191, 0.95);
+        color: #ffffff;
+      }
+      .video-js .vjs-menu li { color: #ffffff; }
+      .video-js .vjs-menu li.vjs-selected,
+      .video-js .vjs-menu li.vjs-selected:hover,
+      .video-js .vjs-menu li.vjs-selected:focus { background-color: #ffffff; color: #78b5bf; }
+      .video-js .vjs-menu li:not(.vjs-selected):hover,
+      .video-js .vjs-menu li:not(.vjs-selected):focus {
+        background-color: rgba(255, 255, 255, 0.2); color: #ffffff;
+      }
+      /* Fix for controlbar not showing on fullscreen (https://github.com/videojs/video.js/issues/8612) */
+      .video-js.vjs-fullscreen .vjs-tech {
+        filter: opacity(0.9999);
+      }
+
+      /* ── Inputs ── */
+      .lbl {
+        display: block;
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--txt-m);
+        margin-bottom: 3px;
+      }
+      .inp, .sel {
+        width: 100%;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--r-sm);
+        color: var(--txt);
+        font-family: var(--f-body);
+        font-size: 13px;
+        padding: 7px 11px;
+        outline: none;
+        transition: border-color var(--t), box-shadow var(--t);
+        appearance: none;
+      }
+      .inp:focus, .sel:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-d);
+      }
+      .inp::placeholder { color: var(--txt-m); }
+      .inp:disabled, .sel:disabled { opacity: .55; cursor: not-allowed; background: var(--bg-e); }
+      .inp[type="number"] { text-align: center; padding-left: 6px; padding-right: 6px; }
+      .sel {
+        cursor: pointer;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239ba4bc' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        padding-right: 28px;
+      }
+      select option { background: var(--bg); color: var(--txt); }
+
+      /* ── Buttons ── */
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+        padding: 7px 14px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-sm);
+        background: var(--bg-e);
+        color: var(--txt-2);
+        font-family: var(--f-body);
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all var(--t);
+        white-space: nowrap;
+      }
+      .btn:hover:not(:disabled) { background: var(--bg-h); border-color: var(--border-s); color: var(--txt); }
+      .btn:disabled { opacity: .55; cursor: not-allowed; }
+      .btn-icon { padding: 7px 9px; }
+
+      .btn-primary {
+        background: var(--accent); border-color: var(--accent);
+        color: #fff; font-weight: 600;
+        border-radius: var(--r-pill);
+        padding: 7px 18px;
+      }
+      .btn-primary:hover:not(:disabled) { background: var(--accent-b); border-color: var(--accent-b); }
+
+      .btn-danger {
+        background: var(--err); border-color: var(--err);
+        color: #fff; font-weight: 600;
+      }
+      .btn-danger:hover:not(:disabled) { background: #a83224; border-color: #a83224; }
+
+      .btn-success {
+        background: var(--accent); border-color: var(--accent);
+        color: #fff; font-weight: 600;
+      }
+      .btn-success:hover:not(:disabled) { background: var(--accent-b); border-color: var(--accent-b); }
+
+      .btn-cyan {
+        background: var(--accent-d); border-color: rgba(120,181,191,.4);
+        color: var(--accent-b);
+      }
+      .btn-cyan:hover:not(:disabled) { background: rgba(120,181,191,.25); border-color: var(--accent); color: var(--accent-b); }
+
+      /* ── Toggle (switch) ── */
+      .tog {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 7px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-sm);
+        background: var(--bg-e);
+        cursor: pointer;
+        transition: all var(--t);
+        white-space: nowrap;
+        user-select: none;
+      }
+      .tog:hover { border-color: var(--border-s); }
+      .tog.disabled { opacity: .4; pointer-events: none; }
+      .tog input { display: none; }
+      .tog-track {
+        width: 26px; height: 14px;
+        background: var(--txt-m);
+        border-radius: 7px;
+        position: relative;
+        transition: background var(--t);
+        flex-shrink: 0;
+      }
+      .tog-track::after {
+        content: '';
+        position: absolute; top: 2px; left: 2px;
+        width: 10px; height: 10px;
+        background: #fff; border-radius: 50%;
+        transition: transform var(--t);
+      }
+      .tog.on .tog-track { background: var(--accent); }
+      .tog.on .tog-track::after { transform: translateX(12px); }
+      .tog span { font-size: 12.5px; color: var(--txt-2); font-weight: 500; }
+
+      /* ── Status pills ── */
+      .pill-row {
+        display: flex; flex-wrap: wrap; gap: 8px;
+        align-items: center;
+      }
+      .pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 5px 11px;
+        border-radius: var(--r-pill);
+        font-size: 11.5px;
+        font-weight: 500;
+        background: var(--bg-e);
+        color: var(--txt-2);
+        border: 1px solid var(--border);
+        line-height: 1.2;
+      }
+      .pill .pill-lbl {
+        font-size: 9.5px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--txt-m);
+        font-weight: 600;
+      }
+      .pill .pill-val { color: var(--txt); font-weight: 600; }
+      .pill-accent { background: var(--accent-d); border-color: rgba(120,181,191,.4); }
+      .pill-accent .pill-val { color: var(--accent-b); }
+
+      /* ── Layout helpers ── */
+      .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+      .gap-panel { margin-top: 14px; }
+
+      .form-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
+        gap: 8px;
+      }
+      @media (max-width: 580px) {
+        .form-grid { grid-template-columns: 1fr; }
+      }
+
+      .ctrl-row {
+        display: flex; flex-wrap: wrap; gap: 8px;
+        align-items: stretch;
+      }
+      .ctrl-row .play-btn { flex: 1 1 140px; padding: 9px 18px; font-size: 14px; }
+      .ctrl-row .btn, .ctrl-row .tog { min-height: 36px; }
+      .ctrl-row .ctrl-pill {
+        display: inline-flex; align-items: center;
+        min-height: 36px; padding: 0 14px;
+        margin-left: auto;
+      }
+
+      .net-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+        grid-template-areas:
+          'profile bufmin bufmax adapt'
+          'desc    desc   desc   desc';
+        gap: 8px;
+        align-items: end;
+      }
+      .net-row .net-prof { grid-area: profile; }
+      .net-row .buf-min  { grid-area: bufmin; }
+      .net-row .buf-max  { grid-area: bufmax; }
+      .net-row .adapt    { grid-area: adapt; align-self: end; }
+      .net-row .net-desc { grid-area: desc; }
+      .net-row .lbl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .net-desc {
+        font-size: 12px;
+        color: var(--txt-m);
+        padding-top: 6px;
+        margin-top: 2px;
+        border-top: 1px solid var(--border);
+        font-style: italic;
+      }
+      @media (max-width: 580px) {
+        .net-row {
+          grid-template-columns: 1fr 1fr;
+          grid-template-areas:
+            'profile profile'
+            'bufmin  bufmax'
+            'adapt   adapt'
+            'desc    desc';
+        }
+      }
+
+      .panel-card {
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        background: var(--bg-s);
+        padding: 12px 14px;
+      }
+      .panel-card-hd {
+        display: flex; align-items: center; gap: 8px;
+        font-size: 11.5px; letter-spacing: .06em;
+        text-transform: uppercase;
+        color: var(--txt-2);
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+      .panel-card-hd i { color: var(--accent); }
+      .panel-card-hd .panel-live-btn {
+        margin-left: auto;
+        padding: 4px 10px;
+        font-size: 11.5px;
+        min-height: 0;
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      .panel-card-hd .panel-live-btn i { color: inherit; }
+
+      /* ── Tabs ── */
+      .tab-bar {
+        display: flex;
+        border-bottom: 1px solid var(--border);
+        gap: 0;
+      }
+      .tab-btn {
+        background: none; border: none;
+        border-bottom: 2px solid transparent;
+        color: var(--txt-m);
+        font-family: var(--f-body);
+        font-size: 12px; font-weight: 600;
+        letter-spacing: .04em; text-transform: uppercase;
+        padding: 7px 14px 6px;
+        cursor: pointer;
+        transition: all var(--t);
+        position: relative; top: 1px;
+      }
+      .tab-btn:hover { color: var(--txt-2); }
+      .tab-btn.on { color: var(--accent); border-bottom-color: var(--accent); }
+      .tab-badge {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 17px; height: 17px; padding: 0 4px;
+        background: var(--accent); color: #fff;
+        font-size: 10px; font-weight: 700; font-family: var(--f-mono);
+        border-radius: 9px; margin-left: 5px;
+      }
+      .tab-body { padding-top: 10px; min-height: 14rem; }
+
+      /* ── Stats ── */
+      .stats-list {
+        background: transparent;
+        list-style: none;
+        padding: 0; margin: 0;
+        display: block;
+        width: 100%;
+      }
+      .stats-list > svg {
+        display: block;
+        width: 100%;
+        border-bottom: 1px solid var(--border);
+        font-family: var(--f-mono);
+        font-size: 12px;
+        fill: var(--txt);
+      }
+      .stats-list > svg:last-child { border-bottom: none; }
+      .stats-empty {
+        padding: 28px 14px;
+        color: var(--txt-m);
+        font-style: italic;
+        font-size: 12px;
+        text-align: center;
+      }
+      .stats-actions {
+        display: flex; gap: 12px; align-items: center; justify-content: center;
+        margin-top: 12px; padding-top: 10px;
+        border-top: 1px solid var(--border);
+      }
+      .stats-actions img {
+        cursor: pointer; opacity: .4; height: 26px;
+        transition: opacity var(--t);
+      }
+      .stats-actions img:hover { opacity: .9; }
+      html[data-theme="dark"] .stats-actions img { filter: invert(1) brightness(1.05); }
+
+      /* ── Messages ── */
+      .msg-box {
+        background: var(--bg-s);
+        border: 1px solid var(--border);
+        border-radius: var(--r-sm);
+        min-height: 12rem; max-height: 18rem;
+        overflow: auto;
+        font-family: var(--f-mono); font-size: 11.5px;
+        padding: 10px 12px;
+        white-space: pre-wrap;
+        color: var(--txt-2);
+      }
+      .msg-empty { color: var(--txt-m); font-style: italic; }
+
+      /* ── Modal ── */
+      .modal-back {
+        position: fixed; inset: 0;
+        background: var(--modal-back);
+        backdrop-filter: blur(4px);
+        z-index: 200;
+      }
+      .modal-wrap {
+        position: fixed; inset: 0; z-index: 201;
+        display: flex; align-items: center; justify-content: center;
+        padding: 16px;
+      }
+      .modal-box {
+        background: var(--bg);
+        border: 1px solid var(--border-s);
+        border-radius: var(--r-lg);
+        width: 100%; max-width: 640px;
+        max-height: calc(100vh - 40px);
+        display: flex; flex-direction: column;
+        box-shadow: var(--shadow-modal);
+      }
+      .modal-hd {
+        display: flex; align-items: center; gap: 10px;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+      .modal-hd i { color: var(--accent); font-size: 14px; }
+      .modal-hd h5 {
+        font-size: 15px; font-weight: 600;
+        letter-spacing: .02em; color: var(--navy);
+      }
+      .modal-x {
+        margin-left: auto; background: none; border: none;
+        color: var(--txt-m); cursor: pointer; font-size: 16px; line-height: 1;
+        transition: color var(--t);
+      }
+      .modal-x:hover { color: var(--txt); }
+      .modal-bd {
+        overflow-y: auto; padding: 14px 18px; flex: 1;
+        scrollbar-width: thin; scrollbar-color: var(--border-s) transparent;
+      }
+      .modal-section {
+        margin-bottom: 18px;
+      }
+      .modal-section-hd {
+        font-size: 11px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--txt-m);
+        font-weight: 700;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; gap: 6px;
+      }
+      .modal-section-hd i { color: var(--accent); font-size: 11px; }
+      .modal-hint {
+        font-size: 11.5px; color: var(--txt-2);
+        margin-bottom: 12px; padding: 8px 11px;
+        background: var(--bg-e); border-radius: var(--r-sm);
+        border-left: 3px solid var(--accent);
+        line-height: 1.55;
+      }
+      .modal-ft {
+        padding: 12px 18px;
+        border-top: 1px solid var(--border);
+        display: flex; justify-content: flex-end;
+        flex-shrink: 0;
+      }
+
+      /* Protocol row */
+      .proto-card {
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        margin-bottom: 8px;
+        overflow: hidden;
+        transition: border-color var(--t);
+      }
+      .proto-card.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-d); }
+      .proto-card.disabled .proto-hd .proto-name { opacity: .55; }
+      .proto-hd {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 14px;
+        background: var(--bg-e);
+      }
+      .proto-name {
+        font-size: 13px; font-weight: 600;
+        letter-spacing: .03em; text-transform: uppercase;
+        color: var(--navy);
+        min-width: 60px;
+      }
+      .proto-tag {
+        font-family: var(--f-mono); font-size: 9.5px; font-weight: 700;
+        padding: 2px 7px; border-radius: var(--r-pill);
+        background: rgba(120,181,191,.15); color: var(--accent-b);
+        border: 1px solid rgba(120,181,191,.4);
+        text-transform: uppercase; letter-spacing: .06em;
+      }
+      .proto-spacer { flex: 1; }
+      .proto-reorder { display: flex; gap: 4px; }
+      .proto-arrow {
+        width: 26px; height: 26px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--r-sm);
+        color: var(--txt-2);
+        font-size: 11px;
+        cursor: pointer;
+        transition: all var(--t);
+      }
+      .proto-arrow:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+      .proto-arrow:disabled { opacity: .35; cursor: not-allowed; }
+      .proto-order-hint {
+        margin-left: auto;
+        font-size: 10px;
+        font-weight: 500;
+        letter-spacing: .04em;
+        text-transform: none;
+        color: var(--txt-m);
+        font-style: italic;
+      }
+      .proto-bd {
+        padding: 12px 14px;
+        display: flex; flex-direction: column; gap: 10px;
+        border-top: 1px solid var(--border);
+        background: var(--bg);
+      }
+      .proto-field { display: flex; flex-direction: column; gap: 3px; }
+
+      /* Video.js plugin settings grid */
+      .player-settings-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        align-items: end;
+      }
+      .player-settings-grid .tog { justify-content: flex-start; }
+      @media (max-width: 540px) {
+        .player-settings-grid { grid-template-columns: 1fr; }
+      }
+
+      /* DRM grid */
+      .drm-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .drm-grid > .drm-field-full { grid-column: 1 / -1; }
+      @media (max-width: 540px) {
+        .drm-grid { grid-template-columns: 1fr; }
+      }
+
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: var(--border-s); border-radius: 3px; }
+
+      [v-cloak] { display: none; }
     </style>
   </head>
 
-  <body class="container">
-    <div class="row">
-      <div class="row col-12">
-        <div class="col-12 col-md-6">
-          <a href="https://ceeblue.net"><img alt="CEEBLUE Media Services" class="rounded mx-auto d-block" src="assets/ceeblue-logo.png"/></a>
+  <body>
+    <div class="shell" id="main" v-cloak>
+      <header class="hdr">
+        <a href="https://ceeblue.net"><img class="ceeblue-logo" alt="Ceeblue" src="assets/ceeblue-logo.png"></a>
+        <h1>Videojs <em>Player</em></h1>
+        <a href="https://videojs.com" title="Video.js"><img class="vjs-logo" alt="Video.js" src="assets/videojs-logo-black.svg"></a>
+        <button class="theme-btn" :title="themeTooltip()" @click="cycleTheme()">
+          <i class="fas" :class="themeIcon()"></i>
+        </button>
+      </header>
+
+      <div class="player">
+        <video ref="videoPlayer" class="video-js vjs-default-skin" playsinline controls autoplay></video>
+      </div>
+
+      <!-- Stream identification (host / stream / token) -->
+      <div class="form-grid gap-panel">
+        <div>
+          <span class="lbl">Node host</span>
+          <input :disabled="!isStopped()" class="inp" placeholder="hostname"
+            type="text" v-model="host" title="Ceeblue node host">
         </div>
-        <div class="col-12 col-md-6 d-flex align-items-center justify-content-center">
-          <a href="https://videojs.com" id="videojs-logo"><img src="assets/videojs-logo-black.svg"></img></a>
+        <div>
+          <span class="lbl">Stream name</span>
+          <input :disabled="!isStopped()" class="inp" placeholder="stream name"
+            type="text" v-model="streamName" title="Stream name">
+        </div>
+        <div>
+          <span class="lbl">Access token</span>
+          <input :disabled="!isStopped()" class="inp" placeholder="optional"
+            type="text" v-model="accessToken" title="Private stream token">
         </div>
       </div>
 
-      <div class="col-md-12 mt-4" id="main">
-        <div class="card text-center border-0">
-          <div class="card-body">
-            <video ref="videoPlayer" class="video-js vjs-default-skin vjs-fluid" playsinline controls autoplay></video>
-          </div>
-        </div>
+      <!-- Controls row -->
+      <div class="ctrl-row gap-panel">
+        <button class="btn play-btn" type="button"
+          :class="{ 'btn-danger': isPlaying(), 'btn-success': isStopped(), 'btn-cyan': isStarting() }"
+          v-on:click="play">
+          <i class="fas" :class="playButtonIcon()"></i>
+          <span>{{ playButtonCaption() }}</span>
+          <i class="fas fa-spinner fa-pulse" v-if="isStarting()"></i>
+        </button>
 
-        <div class="form-row">
-          <div class="form-group col-6 col-sm-3" v-if="shouldShowSignalingSelector()">
-            <select class="custom-select" id="signaling-selection"
-              :disabled="playState !== PlayState.STOPPED"
-              v-model="connectorType" title="Signaling">
-              <option v-bind:value="option" v-for="option in connectorTypes">
-                {{ option }}
-              </option>
+        <button class="btn" title="Open protocol & DRM settings"
+          v-on:click="openSettings()">
+          <i class="fas fa-cog"></i>
+          Settings
+        </button>
+
+        <div class="pill pill-accent ctrl-pill" v-if="shouldShowDRMStatus()"
+          title="Supported content decryption modules for the current encrypted stream">
+          <span class="pill-lbl">DRM</span>
+          <span class="pill-val">{{ drmStatusLabel() }}</span>
+        </div>
+      </div>
+
+      <!-- WRTS real-time tuning panel (inline mirror of modal settings) -->
+      <div class="panel-card gap-panel" v-if="isWrtsRelevant()">
+        <div class="panel-card-hd">
+          <i class="fas fa-sliders-h"></i>
+          WRTS real-time tuning
+          <button class="btn btn-cyan panel-live-btn" title="Jump to live position"
+            v-if="isWrtsActive()"
+            :disabled="!isPlaying()"
+            v-on:click="goLive">
+            <i class="fas fa-rocket"></i>
+            Live
+          </button>
+        </div>
+        <div class="net-row">
+          <div class="net-prof">
+            <span class="lbl">Network profile</span>
+            <select class="sel" v-model="wrtsNetworkProfile" @change="applyWrtsNetworkProfile">
+              <option v-for="option in wrtsNetworkProfiles" :value="option.value">{{ option.label }}</option>
             </select>
           </div>
-          <div class="form-group col-6" :class="shouldShowSignalingSelector() ? 'col-sm-5' : 'col-sm-6'">
-            <input :disabled="isPlaying()" class="form-control"
-              placeholder="Node host" type="text"
-              v-model="host" title="Ceeblue node host">
+          <div class="buf-min">
+            <span class="lbl">Buffer min (ms)</span>
+            <input class="inp" type="number" min="0" step="100"
+              v-model="wrtsBufferLimitLow" @change="onBufferChanged">
           </div>
-          <div class="form-group col-6" :class="shouldShowSignalingSelector() ? 'col-sm-4' : 'col-sm-6'">
-            <input disabled class="form-control"
-              placeholder="Video quality" type="text"
-              v-model="quality" title="Stream quality">
+          <div class="buf-max">
+            <span class="lbl">Buffer max (ms)</span>
+            <input class="inp" type="number" min="0" step="100"
+              v-model="wrtsBufferLimitHigh" @change="onBufferChanged">
           </div>
+          <label class="tog adapt" :class="{ on: wrtsAdaptiveFrameSkipping }"
+            title="Enable or disable adaptive frame-skipping">
+            <input type="checkbox" v-model="wrtsAdaptiveFrameSkipping" @change="applyWrtsRuntimeSettings">
+            <span class="tog-track"></span>
+            <span>Frame Skip</span>
+          </label>
+          <p class="net-desc" v-if="wrtsNetworkProfileDescription">
+            {{ wrtsNetworkProfileDescription }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Tabs (Graph / Messages) -->
+      <div class="gap-panel">
+        <div class="tab-bar">
+          <button class="tab-btn" :class="{ on: bottomPanelTab === 'graph' }"
+            @click="bottomPanelTab = 'graph'">Graph</button>
+          <button class="tab-btn" :class="{ on: bottomPanelTab === 'messages' }"
+            @click="bottomPanelTab = 'messages'">
+            Messages
+            <span class="tab-badge" v-if="pendingMessageCount > 0">{{ pendingMessageCount }}</span>
+          </button>
         </div>
 
-        <div class="form-row">
-          <div class="form-group col-6">
-            <input :disabled="isPlaying()" class="form-control"
-              placeholder="Stream name" type="text"
-              v-model="streamName" title="Stream name">
-          </div>
-
-          <div class="form-group col-6">
-            <input :disabled="isPlaying()" class="form-control"
-              placeholder="Access token cc0f52bb-92bb-462b-8218-88c3febe8533" type="text"
-              v-model="accessToken" title="Private stream token">
-          </div>
-        </div>
-
-        <div class="form-row" v-if="isWrtsSelected()">
-          <div class="form-group col-12 col-md-4">
-            <div class="form-check mt-2">
-              <input class="form-check-input" id="wrts-frame-skipping" type="checkbox"
-                v-model="wrtsAdaptiveFrameSkipping"
-                v-on:change="applyWrtsRuntimeSettings">
-              <label class="form-check-label" for="wrts-frame-skipping">
-                Adaptive Frame-Skipping
-              </label>
+        <div class="tab-body">
+          <!-- Graph -->
+          <div v-show="bottomPanelTab === 'graph'">
+            <div class="stats-empty" v-if="!hasMetrics">
+              Real-time metrics will appear here once playback starts.
+            </div>
+            <ul class="stats-list" ref="stats" v-show="hasMetrics"></ul>
+            <div class="stats-actions" v-show="hasMetrics">
+              <img alt="Reset metric references"
+                title="Reset metric references and rescale the chart"
+                @click="resetMetrics()" src="./assets/reload.png">
+              <img alt="Download metrics report"
+                title="Download metrics as a CSV report"
+                @click="downloadStats()" src="./assets/download.png">
             </div>
           </div>
 
-          <div class="form-group col-12 col-md-4">
-            <select class="custom-select"
-              v-model="wrtsNetworkProfile"
-              v-on:change="applyWrtsNetworkProfile"
-              title="WRTS network profile">
-              <option v-bind:value="option.value" v-for="option in wrtsNetworkProfiles">
-                {{ option.label }}
-              </option>
-            </select>
-          </div>
-
-          <div class="form-group col-6 col-md-2">
-            <input class="form-control"
-              placeholder="Buffer min"
-              type="number"
-              min="0"
-              step="100"
-              v-model="wrtsBufferLimitLow"
-              v-on:change="applyWrtsRuntimeSettings"
-              title="WRTS low buffer threshold (ms)">
-          </div>
-
-          <div class="form-group col-6 col-md-2">
-            <input class="form-control"
-              placeholder="Buffer max"
-              type="number"
-              min="0"
-              step="100"
-              v-model="wrtsBufferLimitHigh"
-              v-on:change="applyWrtsRuntimeSettings"
-              title="WRTS high buffer threshold (ms)">
-          </div>
-        </div>
-
-        <div class="player-actions" v-cloak>
-          <div class="player-actions__center">
-            <button class="btn" type="button"
-              v-bind:class="{ 'btn-danger': isPlaying(), 'btn-success': isStopped(), 'btn-secondary': isStarting() }"
-              v-on:click="play">
-              <span>{{ playButtonCaption() }} <i class="fas fa-spinner fa-pulse"
-                  v-if="isStarting()"></i></span>
-            </button>
-          </div>
-          <div class="player-actions__right" v-if="shouldShowDRMStatus()">
-            <div class="drm-status" title="Supported content decryption modules for the current encrypted stream">
-              <span class="drm-status__label">DRM</span>
-              <span class="drm-status__value">{{ drmStatusLabel() }}</span>
+          <!-- Messages -->
+          <div v-show="bottomPanelTab === 'messages'">
+            <div class="msg-box">
+              <span v-if="!dataMessages" class="msg-empty">No messages yet.</span>
+              <template v-else>{{ dataMessages }}</template>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="card border-0 mt-4">
-          <div class="card-body px-0">
-            <ul class="nav nav-tabs">
-              <li class="nav-item">
-                <a class="nav-link" href="#"
-                  :class="{ active: bottomPanelTab === 'graph' }"
-                  v-on:click.stop.prevent="bottomPanelTab = 'graph'">
-                  Graph
-                </a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link" href="#"
-                  :class="{ active: bottomPanelTab === 'messages' }"
-                  v-on:click.stop.prevent="bottomPanelTab = 'messages'">
-                  Messages
-                  <span class="badge badge-primary tab-badge" v-if="pendingMessageCount > 0">{{ pendingMessageCount }}</span>
-                </a>
-              </li>
-            </ul>
+      <!-- Settings Modal -->
+      <template v-if="showSettings">
+        <div class="modal-back" @click="closeSettings()"></div>
+        <div class="modal-wrap">
+          <div class="modal-box" @click.stop>
+            <div class="modal-hd">
+              <i class="fas fa-cog"></i>
+              <h5>Player settings</h5>
+              <button class="modal-x" @click="closeSettings()" aria-label="Close">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
 
-            <div class="border border-top-0 rounded-bottom bg-white p-3 panel-tab__content">
-              <div v-show="bottomPanelTab === 'graph'">
-                <div class="text-muted" v-if="!hasMetrics">
-                  Real-time metrics will appear here once playback starts.
+            <div class="modal-bd">
+              <p class="modal-hint">
+                Enable or disable each protocol, override the global DRM
+                configuration per protocol, and tune WRTS playback in real time.
+                Changes to protocol selection apply on the next playback.
+              </p>
+
+              <!-- Video.js plugin settings -->
+              <div class="modal-section">
+                <div class="modal-section-hd">
+                  <i class="fas fa-play-circle"></i> Player
                 </div>
-                <ul class="list-group list-group-flush" ref="stats" v-show="hasMetrics"></ul>
-                <div class="form-row mt-3" v-show="hasMetrics">
-                  <div class="form-group mx-auto mb-0">
-                    <img class="m-1" alt="Reset metric references" title="Reset metric references and rescale the chart" type="button" @click="resetMetrics()" src="./assets/reload.png" style="object-fit:contain" height="32">
-                    <img class="m-1" alt="Download metrics report" title="Download metrics as a CSV report" type="button" @click="downloadStats()" src="./assets/download.png" style="object-fit:contain" height="32">
+                <div class="player-settings-grid">
+                  <label class="tog" :class="{ on: auto }">
+                    <input type="checkbox" :disabled="!isStopped()" v-model="auto">
+                    <span class="tog-track"></span>
+                    <span>Auto fallback</span>
+                  </label>
+                  <label class="tog" :class="{ on: sourceButton }">
+                    <input type="checkbox" :disabled="!isStopped()" v-model="sourceButton">
+                    <span class="tog-track"></span>
+                    <span>Source menu button</span>
+                  </label>
+                  <label class="tog" :class="{ on: videobutton }">
+                    <input type="checkbox" :disabled="!isStopped()" v-model="videobutton">
+                    <span class="tog-track"></span>
+                    <span>Quality menu button</span>
+                  </label>
+                  <div class="proto-field">
+                    <span class="lbl">Max retries (0 = ∞)</span>
+                    <input class="inp" type="number" min="0" step="1"
+                      :disabled="!isStopped()" v-model="retryCount">
                   </div>
                 </div>
               </div>
 
-              <div v-show="bottomPanelTab === 'messages'">
-                <div class="messages-panel overflow-auto">
-                  {{ dataMessages || 'No messages yet.' }}
+              <!-- Global content protection -->
+              <div class="modal-section">
+                <div class="modal-section-hd">
+                  <i class="fas fa-shield-alt"></i> Global content protection (key systems)
+                </div>
+                <div class="drm-grid">
+                  <div class="proto-field drm-field-full">
+                    <span class="lbl">Widevine license URL</span>
+                    <input class="inp" type="text" :disabled="!isStopped()"
+                      v-model="globalContentProtection.widevineLicense" placeholder="https://...">
+                  </div>
+                  <div class="proto-field">
+                    <span class="lbl">Widevine audio robustness</span>
+                    <select class="sel" :disabled="!isStopped()"
+                      v-model="globalContentProtection.widevineAudioRobustness">
+                      <option v-for="[label, value] in audioRobustnesses" :value="value">{{ label }}</option>
+                    </select>
+                  </div>
+                  <div class="proto-field">
+                    <span class="lbl">Widevine video robustness</span>
+                    <select class="sel" :disabled="!isStopped()"
+                      v-model="globalContentProtection.widevineVideoRobustness">
+                      <option v-for="[label, value] in videoRobustnesses" :value="value">{{ label }}</option>
+                    </select>
+                  </div>
+                  <div class="proto-field drm-field-full">
+                    <span class="lbl">PlayReady license URL</span>
+                    <input class="inp" type="text" :disabled="!isStopped()"
+                      v-model="globalContentProtection.playreadyLicense" placeholder="https://...">
+                  </div>
+                  <div class="proto-field">
+                    <span class="lbl">PlayReady audio robustness</span>
+                    <input class="inp" type="text" :disabled="!isStopped()"
+                      v-model="globalContentProtection.playreadyAudioRobustness" placeholder="comma-separated">
+                  </div>
+                  <div class="proto-field">
+                    <span class="lbl">PlayReady video robustness</span>
+                    <input class="inp" type="text" :disabled="!isStopped()"
+                      v-model="globalContentProtection.playreadyVideoRobustness" placeholder="comma-separated">
+                  </div>
+                  <div class="proto-field">
+                    <span class="lbl">FairPlay license URL</span>
+                    <input class="inp" type="text" :disabled="!isStopped()"
+                      v-model="globalContentProtection.fairplayLicense" placeholder="https://...">
+                  </div>
+                  <div class="proto-field">
+                    <span class="lbl">FairPlay certificate URL</span>
+                    <input class="inp" type="text" :disabled="!isStopped()"
+                      v-model="globalContentProtection.fairplayCertificate" placeholder="https://...">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Protocols -->
+              <div class="modal-section">
+                <div class="modal-section-hd">
+                  <i class="fas fa-stream"></i> Protocols
+                  <span class="proto-order-hint">order = fallback priority</span>
+                </div>
+
+                <div v-for="proto in protocolsConfig" :key="proto.id"
+                  class="proto-card"
+                  :class="{ active: isProtocolActive(proto), disabled: !proto.enabled }">
+                  <div class="proto-hd">
+                    <label class="tog" :class="{ on: proto.enabled }"
+                      style="border:none; background:none; padding:0;"
+                      @click.stop>
+                      <input type="checkbox" :disabled="!isStopped()" v-model="proto.enabled">
+                      <span class="tog-track"></span>
+                    </label>
+                    <span class="proto-name">{{ proto.label }}</span>
+                    <span class="proto-tag" v-if="isProtocolActive(proto)">Active</span>
+                    <span class="proto-spacer"></span>
+                    <div class="proto-reorder">
+                      <button class="proto-arrow" type="button"
+                        title="Move up"
+                        :disabled="!isStopped() || !canMoveUp(proto)"
+                        @click="moveProtocol(proto, -1)">
+                        <i class="fas fa-chevron-up"></i>
+                      </button>
+                      <button class="proto-arrow" type="button"
+                        title="Move down"
+                        :disabled="!isStopped() || !canMoveDown(proto)"
+                        @click="moveProtocol(proto, 1)">
+                        <i class="fas fa-chevron-down"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="proto-bd" v-if="proto.enabled">
+                    <p class="modal-hint" v-if="proto.id === 'llhls'" style="margin-bottom: 4px;">
+                      LL-HLS shares the HLS configuration bucket: an explicit HLS override
+                      always wins over the LL-HLS one.
+                    </p>
+
+                    <!-- WebRTC: signaling select -->
+                    <div class="proto-field" v-if="proto.id === 'webrtc'">
+                      <span class="lbl">Signaling</span>
+                      <select class="sel" :disabled="!isStopped()"
+                        v-model="webrtcSignaling">
+                        <option value="ceeblue-ws">WebSocket (WS)</option>
+                        <option value="whip">HTTP (WHEP)</option>
+                      </select>
+                    </div>
+
+                    <!-- Content protection override (capable protocols only) -->
+                    <template v-if="proto.contentProtectionCapable">
+                      <label class="tog" :class="{ on: proto.contentProtectionOverride }"
+                        style="align-self: flex-start;">
+                        <input type="checkbox" :disabled="!isStopped()" v-model="proto.contentProtectionOverride">
+                        <span class="tog-track"></span>
+                        <span>Override global content protection</span>
+                      </label>
+                      <div class="drm-grid" v-if="proto.contentProtectionOverride">
+                        <div class="proto-field drm-field-full">
+                          <span class="lbl">Widevine license URL</span>
+                          <input class="inp" type="text"
+                            :disabled="!isStopped()"
+                            v-model="proto.contentProtection.widevineLicense" placeholder="https://...">
+                        </div>
+                        <div class="proto-field">
+                          <span class="lbl">Widevine audio robustness</span>
+                          <select class="sel" :disabled="!isStopped()"
+                            v-model="proto.contentProtection.widevineAudioRobustness">
+                            <option v-for="[label, value] in audioRobustnesses" :value="value">{{ label }}</option>
+                          </select>
+                        </div>
+                        <div class="proto-field">
+                          <span class="lbl">Widevine video robustness</span>
+                          <select class="sel" :disabled="!isStopped()"
+                            v-model="proto.contentProtection.widevineVideoRobustness">
+                            <option v-for="[label, value] in videoRobustnesses" :value="value">{{ label }}</option>
+                          </select>
+                        </div>
+                        <div class="proto-field drm-field-full">
+                          <span class="lbl">PlayReady license URL</span>
+                          <input class="inp" type="text"
+                            :disabled="!isStopped()"
+                            v-model="proto.contentProtection.playreadyLicense" placeholder="https://...">
+                        </div>
+                        <div class="proto-field">
+                          <span class="lbl">PlayReady audio robustness</span>
+                          <input class="inp" type="text"
+                            :disabled="!isStopped()"
+                            v-model="proto.contentProtection.playreadyAudioRobustness" placeholder="comma-separated">
+                        </div>
+                        <div class="proto-field">
+                          <span class="lbl">PlayReady video robustness</span>
+                          <input class="inp" type="text"
+                            :disabled="!isStopped()"
+                            v-model="proto.contentProtection.playreadyVideoRobustness" placeholder="comma-separated">
+                        </div>
+                        <div class="proto-field">
+                          <span class="lbl">FairPlay license URL</span>
+                          <input class="inp" type="text"
+                            :disabled="!isStopped()"
+                            v-model="proto.contentProtection.fairplayLicense" placeholder="https://...">
+                        </div>
+                        <div class="proto-field">
+                          <span class="lbl">FairPlay certificate URL</span>
+                          <input class="inp" type="text"
+                            :disabled="!isStopped()"
+                            v-model="proto.contentProtection.fairplayCertificate" placeholder="https://...">
+                        </div>
+                      </div>
+                    </template>
+
+                    <!-- WRTS: real-time tuning mirror -->
+                    <template v-if="proto.id === 'wrts'">
+                      <div class="net-row" style="margin-top: 4px;">
+                        <div class="net-prof">
+                          <span class="lbl">Network profile</span>
+                          <select class="sel" v-model="wrtsNetworkProfile" @change="applyWrtsNetworkProfile">
+                            <option v-for="option in wrtsNetworkProfiles" :value="option.value">{{ option.label }}</option>
+                          </select>
+                        </div>
+                        <div class="buf-min">
+                          <span class="lbl">Buffer min (ms)</span>
+                          <input class="inp" type="number" min="0" step="100"
+                            v-model="wrtsBufferLimitLow" @change="onBufferChanged">
+                        </div>
+                        <div class="buf-max">
+                          <span class="lbl">Buffer max (ms)</span>
+                          <input class="inp" type="number" min="0" step="100"
+                            v-model="wrtsBufferLimitHigh" @change="onBufferChanged">
+                        </div>
+                        <label class="tog adapt" :class="{ on: wrtsAdaptiveFrameSkipping }">
+                          <input type="checkbox" v-model="wrtsAdaptiveFrameSkipping" @change="applyWrtsRuntimeSettings">
+                          <span class="tog-track"></span>
+                          <span>Frame Skip</span>
+                        </label>
+                      </div>
+                    </template>
+                  </div>
                 </div>
               </div>
             </div>
+
+            <div class="modal-ft">
+              <button class="btn btn-primary" @click="closeSettings()">Done</button>
+            </div>
           </div>
         </div>
-      </div>
+      </template>
     </div>
 
     <script type="module">
-    // development version, includes helpful console warnings
-    // import { createApp } from 'https://cdn.jsdelivr.net/npm/vue@3/dist/vue.esm-browser.js';
-    // production version, optimized for size and speed
     import {
       Util,
       NetAddress,
@@ -310,48 +1137,196 @@
       STARTING: 'STARTING',
       STOPPED: 'STOPPED'
     };
+
+    const THEME_CYCLE = ['light', 'dark'];
+    const PROTOCOL_LABELS = {
+      wrts: 'WRTS',
+      webrtc: 'WebRTC',
+      llhls: 'LL-HLS',
+      hls: 'HLS',
+      dash: 'DASH'
+    };
+    // Content protection is meaningful for the protocols that flow through Video.js HTTP / WRTS sources.
+    const CONTENT_PROTECTION_CAPABLE = new Set(['wrts', 'llhls', 'hls', 'dash']);
+
+    function emptyContentProtection() {
+      return {
+        widevineLicense: '',
+        widevineAudioRobustness: '',
+        widevineVideoRobustness: '',
+        playreadyLicense: '',
+        playreadyAudioRobustness: '',
+        playreadyVideoRobustness: '',
+        fairplayLicense: '',
+        fairplayCertificate: ''
+      };
+    }
+
+    function hasContentProtection(cp) {
+      return Object.values(cp).some(Boolean);
+    }
+
+    function parseRobustness(value) {
+      return (value || '').split(',').map(s => s.trim()).filter(Boolean);
+    }
+
+    // Widevine / PlayReady accept either a string license URL or a config object.
+    // Wrap the URL in an object only when audio/video robustness is configured.
+    function buildKeySystemEntry(license, audioRob, videoRob) {
+      if (!license) return undefined;
+      const audio = parseRobustness(audioRob);
+      const video = parseRobustness(videoRob);
+
+      if (!audio.length && !video.length) return license;
+      const config = { url: license };
+
+      if (audio.length) config.audioRobustness = audio;
+      if (video.length) config.videoRobustness = video;
+      return config;
+    }
+
+    // URL-safe base64 round-trip for UTF-8 strings (same encoding as wrts-client player-v2)
+    function utf8ToBase64Url(str) {
+      const bytes = new TextEncoder().encode(str);
+      let binary = '';
+
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function base64UrlToUtf8(str) {
+      const padded = str.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice(0, (4 - str.length % 4) % 4);
+      const binary = atob(padded);
+      const bytes = new Uint8Array(binary.length);
+
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return new TextDecoder().decode(bytes);
+    }
+
+    function buildKeySystems(cp) {
+      const out = {};
+      const widevine = buildKeySystemEntry(cp.widevineLicense, cp.widevineAudioRobustness, cp.widevineVideoRobustness);
+
+      if (widevine) out['com.widevine.alpha'] = widevine;
+
+      const playready = buildKeySystemEntry(cp.playreadyLicense, cp.playreadyAudioRobustness, cp.playreadyVideoRobustness);
+
+      if (playready) out['com.microsoft.playready'] = playready;
+
+      if (cp.fairplayLicense || cp.fairplayCertificate) {
+        out['com.apple.fps'] = {
+          licenseUri: cp.fairplayLicense || undefined,
+          certificateUri: cp.fairplayCertificate || undefined
+        };
+      }
+      return Object.keys(out).length ? out : undefined;
+    }
+
     // /!\ keep this outside of the app to avoid issues with vuejs proxying)
     let player = null; // the videojs Player
     let textTracksBound = false;
-    let metricsTimer = null;
 
     createApp({
       data() {
         return {
-          PlayState: PlayState,
+          PlayState,
           playState: PlayState.STOPPED,
 
+          // Stream identification
           streamName: '',
           accessToken: null,
           host: null,
 
-          audio: null,
-          video: null,
+          // Optional URL-driven flags
+          audioTrack: null,
+          videoTrack: null,
           videobutton: true,
           retryCount: 0,
           auto: true,
 
-          connectorTypes: ['WebSocket (WS)', 'HTTP (WHEP)'],
-          connectorType: 'WebSocket (WS)',
-          sources: Ceeblue.protocols,
+          // Theme
+          theme: localStorage.getItem('vjs-ceeblue-theme') || 'light',
+
+          // Current playback metadata
           source: '',
           selectedSource: '',
-          playerOptions: {},
+          quality: '',
+          supportedCDMs: null,
+          currentSourceEncrypted: false,
+          currentSourceKeySystems: null,
+          activeCDM: '',
+          boundTechElement: null,
+
+          // UI tabs / messages
           bottomPanelTab: 'graph',
+          dataMessages: '',
+          pendingMessageCount: 0,
+
+          // Settings modal
+          showSettings: false,
+
+          // WebRTC signaling
+          webrtcSignaling: 'ceeblue-ws',
+
+          // Global content protection (blank by default — fill in via UI or URL settings)
+          globalContentProtection: emptyContentProtection(),
+
+          // Widevine-only robustness presets. Keys are display labels, values are the
+          // comma-joined robustness strings stored on `*AudioRobustness`/`*VideoRobustness`.
+          // PlayReady has no standard preset list, so its inputs are free-form text.
+          audioRobustnesses: new Map([
+            ['HW & SW', 'HW_SECURE_CRYPTO,SW_SECURE_CRYPTO'],
+            ['SW', 'SW_SECURE_CRYPTO'],
+            ['HW', 'HW_SECURE_CRYPTO'],
+            ['All', 'HW_SECURE_ALL,HW_SECURE_CRYPTO,SW_SECURE_CRYPTO'],
+            ['(empty)', '']
+          ]),
+          videoRobustnesses: new Map([
+            ['HW & SW', 'HW_SECURE_DECODE,SW_SECURE_DECODE'],
+            ['SW', 'SW_SECURE_DECODE'],
+            ['HW', 'HW_SECURE_DECODE'],
+            ['All', 'HW_SECURE_ALL,HW_SECURE_DECODE,SW_SECURE_DECODE'],
+            ['(empty)', '']
+          ]),
+
+          // Per-protocol config (enable/disable + content protection override). HLS is off by
+          // default since LL-HLS already covers the HLS adaptive case for low-latency demos.
+          // The array order is the protocol priority; users can reorder via the UI arrows.
+          protocolsConfig: Ceeblue.protocols.map((id) => ({
+            id,
+            label: PROTOCOL_LABELS[id] || id.toUpperCase(),
+            enabled: id !== 'hls',
+            contentProtectionCapable: CONTENT_PROTECTION_CAPABLE.has(id),
+            contentProtectionOverride: false,
+            contentProtection: emptyContentProtection()
+          })),
+
+          // Video.js plugin options
+          sourceButton: true,
+
+          // WRTS real-time settings
           wrtsAdaptiveFrameSkipping: true,
           wrtsNetworkProfiles: [
-            { value: '-manual-', label: 'Network profile: -manual-' },
-            { value: 'ideal', label: 'Network profile: ideal', bufferLimitLow: 200, bufferLimitHigh: 500 },
-            { value: 'normal', label: 'Network profile: normal', bufferLimitLow: 400, bufferLimitHigh: 800 },
-            { value: 'distant', label: 'Network profile: distant', bufferLimitLow: 1000, bufferLimitHigh: 2000 },
-            { value: 'unstable', label: 'Network profile: unstable', bufferLimitLow: 2000, bufferLimitHigh: 4000 },
+            { value: '-manual-', label: '-manual-',
+              description: 'Manually configure a buffer window large enough to compensate for network variations.' },
+            { value: 'ideal', label: 'ideal',
+              bufferLimitLow: 200, bufferLimitHigh: 500,
+              description: 'Ideal conditions for low latency: streamer and player are geographically close.' },
+            { value: 'normal', label: 'normal',
+              bufferLimitLow: 400, bufferLimitHigh: 800,
+              description: 'A stable and reliable network between streamer and player.' },
+            { value: 'distant', label: 'distant',
+              bufferLimitLow: 1000, bufferLimitHigh: 2000,
+              description: 'Significantly distant or multi-hop connections (VPNs, CDN providers).' },
+            { value: 'unstable', label: 'unstable',
+              bufferLimitLow: 2000, bufferLimitHigh: 4000,
+              description: 'Resilient for maximum stability on challenging networks.' }
           ],
           wrtsNetworkProfile: 'normal',
           wrtsBufferLimitLow: '400',
           wrtsBufferLimitHigh: '800',
 
-          dataMessages: '',
-          pendingMessageCount: 0,
+          // Stats
           hasMetrics: false,
           stats: new Map(),
           uiStats: null,
@@ -362,18 +1337,19 @@
             skippedVideo: 0,
             lostPacketCount: 0,
             nackCount: 0
-          },
-          quality: '',
-          supportedCDMs: null,
-          currentSourceEncrypted: false,
-          currentSourceKeySystems: null,
-          activeCDM: '',
-          boundTechElement: null,
+          }
+        };
+      },
+      computed: {
+        wrtsNetworkProfileDescription() {
+          const profile = this.wrtsNetworkProfiles.find((entry) => entry.value === this.wrtsNetworkProfile);
+
+          return profile?.description || '';
         }
       },
       created() {
         const options = Util.options();
-        // init values
+
         const host = options.host;
         this.host = new NetAddress(host || location.host, 443);
         this.streamName = options.stream;
@@ -381,19 +1357,72 @@
 
         this.audioTrack = options.audio;
         this.videoTrack = options.video;
-        this.videobutton = options.videobutton != false;
-        this.retryCount = options.retryCount;
-        this.auto = options.auto !== false;
         this.selectedSource = options.protocol || '';
-        this.connectorType = host && host.toLowerCase().startsWith('http')? this.connectorTypes[1] : this.connectorTypes[0];
-        this.wrtsAdaptiveFrameSkipping = options.adaptiveFrameSkipping !== false;
-        this.wrtsNetworkProfile = options.wrtsProfile || 'normal';
-        this.wrtsBufferLimitLow = options.bufferLimitLow || '400';
-        this.wrtsBufferLimitHigh = options.bufferLimitHigh || '800';
+        this.webrtcSignaling = (host && host.toLowerCase().startsWith('http')) ? 'whip' : 'ceeblue-ws';
+
+        // Everything else is encoded as a single base64 JSON blob in `settings`.
+        let settings = null;
+
+        if (options.settings) {
+          try {
+            settings = JSON.parse(base64UrlToUtf8(options.settings));
+          } catch (err) {
+            console.warn('Invalid settings parameter:', err);
+          }
+        }
+
+        if (settings) {
+          // Sources: order matters; enable/disable, signaling, and per-protocol contentProtection.
+          if (Array.isArray(settings.sources)) {
+            const byId = Object.fromEntries(this.protocolsConfig.map((p) => [p.id, p]));
+            const reordered = [];
+
+            for (const entry of settings.sources) {
+              const proto = byId[entry?.protocol];
+
+              if (!proto || reordered.includes(proto)) continue;
+              proto.enabled = entry.enabled !== false;
+              if (proto.id === 'webrtc' && entry.signaling) {
+                this.webrtcSignaling = entry.signaling;
+              }
+              if (proto.contentProtectionCapable && entry.contentProtection) {
+                Object.assign(proto.contentProtection, entry.contentProtection);
+                proto.contentProtectionOverride = true;
+              }
+              reordered.push(proto);
+            }
+            for (const proto of this.protocolsConfig) {
+              if (!reordered.includes(proto)) {
+                proto.enabled = false;
+                reordered.push(proto);
+              }
+            }
+            this.protocolsConfig = reordered;
+          }
+
+          if (settings.contentProtection) {
+            Object.assign(this.globalContentProtection, settings.contentProtection);
+          }
+
+          const wrts = settings.wrts || {};
+
+          this.wrtsAdaptiveFrameSkipping = wrts.reliable ? false : true;
+          this.wrtsNetworkProfile = wrts.profile || 'normal';
+          this.wrtsBufferLimitLow = wrts.bufferLimitLow != null ? String(wrts.bufferLimitLow) : '400';
+          this.wrtsBufferLimitHigh = wrts.bufferLimitHigh != null ? String(wrts.bufferLimitHigh) : '800';
+
+          const player = settings.player || {};
+
+          this.auto = player.auto !== false;
+          this.retryCount = player.retryCount || 0;
+          this.sourceButton = player.sourceButton !== false;
+          this.videobutton = player.videobutton !== false;
+        }
 
         this.applyWrtsNetworkProfile();
       },
       mounted() {
+        // Stats wiring (same setup as before)
         this.stats = new Map();
         const bandwidths = []; this.stats.set('Bandwidth', bandwidths);
         const bufferAmounts = []; this.stats.set('Buffer', bufferAmounts);
@@ -412,36 +1441,46 @@
         const jitter = []; this.stats.set('Jitter', jitter);
         this.uiStats = new UIMetrics(this.$refs.stats);
 
+        // Instantiate Video.js eagerly so the big play button is visible from the
+        // start. The ceeblue plugin is only installed once the user has stream
+        // params and triggers playback (either via the page's Play button or the
+        // big play button itself, which routes to the same startPlayback path).
+        player = videojs(this.$refs.videoPlayer, this.buildBaseOptions());
+        this.bindPlayerEvents();
+
+        const bigPlayButton = player.getChild('BigPlayButton');
+
+        if (bigPlayButton) {
+          bigPlayButton.on('click', () => {
+            if (this.isStopped()) this.startPlayback();
+          });
+        }
+
         setInterval(() => {
           const wrtsSource = this.getCurrentWrtsSource();
           const wrtsPlayer = wrtsSource?.wrtsPlayer;
 
           if (wrtsPlayer?.running) {
             const stats = wrtsPlayer.computeStats();
-            // For bandwidth calculation, using player.recvByteRate is faster than
-            // summing stats.audioByteRate + stats.videoByteRate + stats.dataByteRate.
-            if(bandwidths.length || wrtsPlayer.recvByteRate) {
-              bandwidths.push(Math.round(wrtsPlayer.recvByteRate*8/1000)+"kbps");
-            }
-            if(bufferAmounts.length || stats.bufferAmount) {
-              bufferAmounts.push(stats.bufferAmount+"ms");
-            }
-            if(latencies.length || stats.latency) {
-              latencies.push(stats.latency+"ms");
-            }
 
+            if (bandwidths.length || wrtsPlayer.recvByteRate) {
+              bandwidths.push(Math.round(wrtsPlayer.recvByteRate * 8 / 1000) + 'kbps');
+            }
+            if (bufferAmounts.length || stats.bufferAmount) {
+              bufferAmounts.push(stats.bufferAmount + 'ms');
+            }
+            if (latencies.length || stats.latency) {
+              latencies.push(stats.latency + 'ms');
+            }
             playbackRates.push((stats.playbackRate || 0).toFixed(2));
             playbackSpeeds.push((stats.playbackSpeed || 0).toFixed(2));
             fps.push((stats.videoPerSecond || 0).toFixed(2));
-            trackAudio.push(((stats.audioTrackBandwidth || 0)*8/1000).toFixed() + 'kbps');
-            trackVideo.push(((stats.videoTrackBandwidth || 0)*8/1000).toFixed() + 'kbps');
-
-            skippedAudio.push((((stats.skippedAudio || 0) - (this.deltaStats.skippedAudio || 0)) /1000).toFixed(1)+"s");
-            skippedVideo.push((((stats.skippedVideo || 0) - (this.deltaStats.skippedVideo || 0)) /1000).toFixed(1)+"s");
-
+            trackAudio.push(((stats.audioTrackBandwidth || 0) * 8 / 1000).toFixed() + 'kbps');
+            trackVideo.push(((stats.videoTrackBandwidth || 0) * 8 / 1000).toFixed() + 'kbps');
+            skippedAudio.push((((stats.skippedAudio || 0) - (this.deltaStats.skippedAudio || 0)) / 1000).toFixed(1) + 's');
+            skippedVideo.push((((stats.skippedVideo || 0) - (this.deltaStats.skippedVideo || 0)) / 1000).toFixed(1) + 's');
             stalls.push((stats.stallCount || 0) - (this.deltaStats.stallCount || 0));
           } else {
-            // when WRTS is not running, try WebRTC
             const webrtcSource = this.getCurrentWebRTCSource();
             const webrtcPlayer = webrtcSource?.webRTCPlayer;
 
@@ -467,7 +1506,6 @@
             jitter.push((((stats.jitter || 0) * 1000).toFixed(0)) + 'ms');
           }
 
-          // Finally update the graph
           this.times.push({
             time: new Date().toISOString(),
             mediaTime: player?.currentTime?.() || 0
@@ -476,19 +1514,113 @@
           this.uiStats.display(this.stats);
         }, 700);
       },
+      watch: {
+        showSettings(value) {
+          document.body.classList.toggle('modal-open', value);
+        },
+        bottomPanelTab(nextTab) {
+          if (nextTab === 'messages') {
+            this.pendingMessageCount = 0;
+          }
+        }
+      },
       methods: {
-        resetMetrics(all=false) {
+        // ── Theme ──
+        cycleTheme() {
+          this.theme = THEME_CYCLE[(THEME_CYCLE.indexOf(this.theme) + 1) % THEME_CYCLE.length];
+          localStorage.setItem('vjs-ceeblue-theme', this.theme);
+          document.documentElement.dataset.theme = this.theme;
+        },
+        themeIcon() {
+          return { light: 'fa-sun', dark: 'fa-moon' }[this.theme];
+        },
+        themeTooltip() {
+          return `Theme: ${this.theme} (click to cycle)`;
+        },
+
+        // ── Settings modal ──
+        openSettings() {
+          this.showSettings = true;
+        },
+        closeSettings() {
+          this.showSettings = false;
+          this.updateURL();
+        },
+
+        // ── URL state ──
+        buildSettings() {
+          // Everything that isn't host/stream/token rides in a single `settings` blob whose
+          // `sources` array order is the protocol priority.
+          const sources = this.protocolsConfig.map((proto) => {
+            const entry = { protocol: proto.id, enabled: proto.enabled };
+
+            if (proto.id === 'webrtc' && this.webrtcSignaling !== 'ceeblue-ws') {
+              entry.signaling = this.webrtcSignaling;
+            }
+            if (proto.contentProtectionCapable && proto.contentProtectionOverride
+                && hasContentProtection(proto.contentProtection)) {
+              entry.contentProtection = { ...proto.contentProtection };
+            }
+            return entry;
+          });
+
+          const settings = { sources };
+
+          if (hasContentProtection(this.globalContentProtection)) {
+            settings.contentProtection = { ...this.globalContentProtection };
+          }
+
+          const wrts = {};
+
+          if (!this.wrtsAdaptiveFrameSkipping) wrts.reliable = true;
+          if (this.wrtsNetworkProfile && this.wrtsNetworkProfile !== 'normal') wrts.profile = this.wrtsNetworkProfile;
+          if (this.wrtsBufferLimitLow !== '' && this.wrtsBufferLimitLow != null) {
+            wrts.bufferLimitLow = Number(this.wrtsBufferLimitLow);
+          }
+          if (this.wrtsBufferLimitHigh !== '' && this.wrtsBufferLimitHigh != null) {
+            wrts.bufferLimitHigh = Number(this.wrtsBufferLimitHigh);
+          }
+          if (Object.keys(wrts).length) settings.wrts = wrts;
+
+          const player = {};
+
+          if (!this.auto) player.auto = false;
+          if (this.retryCount) player.retryCount = Number(this.retryCount);
+          if (!this.sourceButton) player.sourceButton = false;
+          if (!this.videobutton) player.videobutton = false;
+          if (Object.keys(player).length) settings.player = player;
+
+          return settings;
+        },
+        updateURL() {
+          if (!history.pushState) return;
+          const params = new URLSearchParams();
+
+          if (this.host) params.set('host', String(this.host));
+          if (this.streamName) params.set('stream', this.streamName);
+          if (this.accessToken) params.set('token', this.accessToken);
+          if (this.audioTrack) params.set('audio', String(this.audioTrack));
+          if (this.videoTrack) params.set('video', String(this.videoTrack));
+
+          params.set('settings', utf8ToBase64Url(JSON.stringify(this.buildSettings())));
+
+          const path = location.origin + location.pathname
+            + (params.toString() ? '?' + params.toString() : '');
+
+          history.pushState({ path }, '', path);
+        },
+
+        // ── Stats ──
+        resetMetrics(all = false) {
           this.uiStats?.reset();
           this.deltaStats = {
-            stallCount: 0,
-            skippedAudio: 0,
-            skippedVideo: 0,
-            lostPacketCount: 0,
-            nackCount: 0
+            stallCount: 0, skippedAudio: 0, skippedVideo: 0,
+            lostPacketCount: 0, nackCount: 0
           };
           const displayableCount = all ? 0 : this.uiStats.displayableCount;
-          for(let [_, values] of this.stats) {
-              values.splice(0, Math.max(0, values.length - displayableCount));
+
+          for (const [, values] of this.stats) {
+            values.splice(0, Math.max(0, values.length - displayableCount));
           }
           this.times.splice(0, Math.max(0, this.times.length - displayableCount));
         },
@@ -537,120 +1669,119 @@
             this.pendingMessageCount += 1;
           }
         },
-        buildProtocols(selectedSource) {
-          if (!selectedSource) {
-            return [...this.sources];
+
+        // ── Plugin options builder ──
+        getEnabledProtocols(selectedSource) {
+          const enabled = this.protocolsConfig.filter((p) => p.enabled).map((p) => p.id);
+
+          if (!selectedSource || !enabled.includes(selectedSource)) {
+            return enabled;
           }
+          const reordered = enabled.filter((id) => id !== selectedSource);
 
-          const orderedProtocols = this.sources.filter((source) => source !== selectedSource);
-
-          return [selectedSource, ...orderedProtocols];
+          return [selectedSource, ...reordered];
         },
         buildQueryParams() {
           const query = new URLSearchParams();
 
-          if (this.audioTrack) {
-            query.set('audio', this.audioTrack);
-          }
-          if (this.videoTrack) {
-            query.set('video', this.videoTrack);
-          }
+          if (this.audioTrack) query.set('audio', this.audioTrack);
+          if (this.videoTrack) query.set('video', this.videoTrack);
 
           return query;
         },
-        buildWrtsSettings() {
-          const settings = {
-            reliable: !this.wrtsAdaptiveFrameSkipping
-          };
+        buildWrtsRuntimeSettings() {
+          const settings = { reliable: !this.wrtsAdaptiveFrameSkipping };
           const bufferLimitLow = Number.parseInt(this.wrtsBufferLimitLow, 10);
           const bufferLimitHigh = Number.parseInt(this.wrtsBufferLimitHigh, 10);
 
-          if (!Number.isNaN(bufferLimitLow)) {
-            settings.bufferLimitLow = bufferLimitLow;
-          }
+          if (!Number.isNaN(bufferLimitLow)) settings.bufferLimitLow = bufferLimitLow;
+          if (!Number.isNaN(bufferLimitHigh)) settings.bufferLimitHigh = bufferLimitHigh;
 
-          if (!Number.isNaN(bufferLimitHigh)) {
-            settings.bufferLimitHigh = bufferLimitHigh;
+          return settings;
+        },
+        buildPerProtocolSettings() {
+          const settings = {
+            webrtc: { signaling: this.webrtcSignaling },
+            wrts: this.buildWrtsRuntimeSettings()
+          };
+
+          // LLHLS shares the `hls` settings bucket — an explicit HLS override wins, otherwise
+          // fall back to the LLHLS one so the source handler picks it up consistently.
+          const byId = Object.fromEntries(this.protocolsConfig.map((p) => [p.id, p]));
+          const hlsBucket = (byId.hls?.contentProtectionOverride && buildKeySystems(byId.hls.contentProtection))
+            || (byId.llhls?.contentProtectionOverride && buildKeySystems(byId.llhls.contentProtection));
+
+          if (hlsBucket) settings.hls = { ...(settings.hls || {}), keySystems: hlsBucket };
+
+          if (byId.wrts?.contentProtectionOverride) {
+            const ks = buildKeySystems(byId.wrts.contentProtection);
+
+            if (ks) settings.wrts = { ...(settings.wrts || {}), keySystems: ks };
+          }
+          if (byId.dash?.contentProtectionOverride) {
+            const ks = buildKeySystems(byId.dash.contentProtection);
+
+            if (ks) settings.dash = { ...(settings.dash || {}), keySystems: ks };
           }
 
           return settings;
         },
-        buildPlayerOptions(selectedSource) {
-          const signaling = this.connectorType === this.connectorTypes[1] ? 'whip' : 'ceeblue-ws';
-
+        buildBaseOptions() {
           return {
+            bigPlayButton: true,
             responsive: true,
             muted: true,
             html5: {
+              bigPlayButton: true,
               nativeControlsForTouch: false,
-              vhs: {overrideNative: true},
+              vhs: { overrideNative: true },
               nativeAudioTracks: false,
-              nativeVideoTracks: false,
-            },
-            plugins: {
-              ceeblue: {
-                autoFallback: this.auto,
-                endPoint: this.host.toString(),
-                streamName: this.streamName,
-                accessToken: this.accessToken || void 0,
-                maxRetries: Number.parseInt(this.retryCount, 10) || 1,
-                sourceButton: true,
-                enableQualityOptions: !!this.videobutton,
-                protocols: this.buildProtocols(selectedSource),
-                query: this.buildQueryParams(),
-                keySystems: {
-                  'com.widevine.alpha': 'https://widevine-dash.ezdrm.com/widevine-php/widevine-foreignkey.php?pX=B752A3',
-                  'com.microsoft.playready': 'https://playready.ezdrm.com/cency/preauth.aspx?pX=CAF350',
-                  'com.apple.fps': {
-                    certificateUri: 'https://na-fps.ezdrm.com/demo/video/eleisure.cer',
-                    licenseUri: 'https://fps.ezdrm.com/api/licenses/auth?pX=48EA94&assetid=c9e170a5-b3af-49d8-a8ad-fc2d90104744'
-                  }
-                },
-                settings: {
-                  webrtc: {
-                    signaling,
-                  },
-                  wrts: this.buildWrtsSettings(),
-                }
-              }
+              nativeVideoTracks: false
             }
           };
         },
-        getCurrentWrtsSource() {
-          if (!player) {
-            return null;
-          }
+        buildCeeblueOptions(selectedSource) {
+          return {
+            autoFallback: this.auto,
+            endPoint: this.host.toString(),
+            streamName: this.streamName,
+            accessToken: this.accessToken || void 0,
+            maxRetries: Number.parseInt(this.retryCount, 10) || 1,
+            sourceButton: !!this.sourceButton,
+            enableQualityOptions: !!this.videobutton,
+            protocols: this.getEnabledProtocols(selectedSource),
+            query: this.buildQueryParams(),
+            keySystems: buildKeySystems(this.globalContentProtection),
+            settings: this.buildPerProtocolSettings()
+          };
+        },
 
+        // ── Current source helpers ──
+        getCurrentWrtsSource() {
+          if (!player) return null;
           const tech = player.tech_ || (typeof player.tech === 'function' ? player.tech(true) : null);
 
           return tech?.wrts || null;
         },
         getCurrentWebRTCSource() {
-          if (!player) {
-            return null;
-          }
-
+          if (!player) return null;
           const tech = player.tech_ || (typeof player.tech === 'function' ? player.tech(true) : null);
 
           return tech?.webrtc || null;
         },
         getCurrentProtocol() {
-          const plugin = player?.ceeblue?.();
+          if (!player || !player.usingPlugin('ceeblue')) return '';
 
-          return plugin?.currentSource?.sourceType || '';
+          return player.ceeblue().currentSource?.sourceType || '';
         },
+
+        // ── DRM status ──
         getSupportedCDMNames() {
           const supportedCDMs = this.supportedCDMs;
 
-          if (!supportedCDMs) {
-            return [];
-          }
+          if (!supportedCDMs) return [];
 
-          const labels = {
-            fairplay: 'FairPlay',
-            playready: 'PlayReady',
-            widevine: 'Widevine'
-          };
+          const labels = { fairplay: 'FairPlay', playready: 'PlayReady', widevine: 'Widevine' };
 
           return Object.entries(labels)
             .filter(([key]) => !!supportedCDMs[key])
@@ -659,27 +1790,18 @@
         shouldShowDRMStatus() {
           return this.currentSourceEncrypted;
         },
-        shouldShowSignalingSelector() {
-          return this.sources.includes('webrtc');
+        hasStatusInfo() {
+          return !!this.source || !!this.quality || this.currentSourceEncrypted;
         },
         drmStatusLabel() {
-          if (this.activeCDM) {
-            return this.activeCDM;
-          }
+          if (this.activeCDM) return this.activeCDM;
+          const names = this.getSupportedCDMNames();
 
-          const supportedNames = this.getSupportedCDMNames();
-
-          if (!supportedNames.length) {
-            return 'Encrypted stream';
-          }
-
-          return 'Available: ' + supportedNames.join(' · ');
+          if (!names.length) return 'Encrypted stream';
+          return 'Available: ' + names.join(' · ');
         },
         getConfiguredDRMSystems(source) {
-          if (!source?.keySystems) {
-            return [];
-          }
-
+          if (!source?.keySystems) return [];
           const labels = {
             'com.apple.fps': 'FairPlay',
             'com.apple.fps.1_0': 'FairPlay',
@@ -687,9 +1809,7 @@
             'com.widevine.alpha': 'Widevine'
           };
 
-          return Object.keys(source.keySystems)
-            .map(key => labels[key])
-            .filter(Boolean);
+          return Object.keys(source.keySystems).map(key => labels[key]).filter(Boolean);
         },
         getCDMLabelFromEvent(event) {
           const labels = {
@@ -710,47 +1830,64 @@
           const tech = player?.tech?.(true) || player?.tech_ || null;
           const techElement = tech?.el?.() || tech?.el_ || null;
 
-          if (!techElement || this.boundTechElement === techElement) {
-            return;
-          }
-
+          if (!techElement || this.boundTechElement === techElement) return;
           this.boundTechElement = techElement;
 
           if (tech?.on) {
             tech.on('licenserequestattempted', (event) => {
               const cdm = this.getCDMLabelFromEvent(event);
 
-              if (cdm) {
-                this.activeCDM = cdm;
-              }
+              if (cdm) this.activeCDM = cdm;
             });
-
             tech.on('keystatuschange', (event) => {
               const cdm = this.getCDMLabelFromEvent(event);
 
-              if (cdm) {
-                this.activeCDM = cdm;
-              }
+              if (cdm) this.activeCDM = cdm;
             });
           }
 
           if (techElement?.addEventListener) {
             techElement.addEventListener('encrypted', () => {
               this.currentSourceEncrypted = true;
-
               if (!this.activeCDM) {
-                const configuredSystems = this.getConfiguredDRMSystems({ keySystems: this.currentSourceKeySystems });
+                const configured = this.getConfiguredDRMSystems({ keySystems: this.currentSourceKeySystems });
 
-                if (configuredSystems.length === 1) {
-                  [this.activeCDM] = configuredSystems;
-                }
+                if (configured.length === 1) [this.activeCDM] = configured;
               }
             });
           }
         },
-        isWrtsSelected() {
+
+        // ── Protocol reordering ──
+        moveProtocol(proto, delta) {
+          const list = this.protocolsConfig;
+          const idx = list.indexOf(proto);
+          const next = idx + delta;
+
+          if (idx < 0 || next < 0 || next >= list.length) return;
+          [list[idx], list[next]] = [list[next], list[idx]];
+          this.updateURL();
+        },
+        canMoveUp(proto) { return this.protocolsConfig.indexOf(proto) > 0; },
+        canMoveDown(proto) { return this.protocolsConfig.indexOf(proto) < this.protocolsConfig.length - 1; },
+
+        // ── Active-state helpers ──
+        isProtocolActive(proto) {
+          return (this.source || this.selectedSource) === proto.id;
+        },
+        isWrtsActive() {
           return (this.source || this.selectedSource) === 'wrts';
         },
+        isWrtsRelevant() {
+          // Inline WRTS panel is shown whenever the user has WRTS enabled (so they can configure
+          // it before playback) or the current stream is using WRTS.
+          if (this.isWrtsActive()) return true;
+          const wrts = this.protocolsConfig.find((p) => p.id === 'wrts');
+
+          return !!wrts?.enabled;
+        },
+
+        // ── Playback state ──
         syncPlaybackState(nextState) {
           this.playState = nextState;
           this.source = nextState === PlayState.STOPPED ? '' : this.getCurrentProtocol();
@@ -792,15 +1929,13 @@
             const source = event.details.source;
 
             console.log('sourcechanged', source);
-            console.log('source keySystems', source?.keySystems);
 
             if (typeof player.eme === 'object' && !this.supportedCDMs) {
               player.eme.detectSupportedCDMs()
-              .then(supportedCDMs => {
-                // Sample output: {fairplay: false, playready: false, widevine: true, clearkey: true}
-                console.log('supportedCDMs :', supportedCDMs);
-                this.supportedCDMs = supportedCDMs;
-              });
+                .then(supportedCDMs => {
+                  console.log('supportedCDMs:', supportedCDMs);
+                  this.supportedCDMs = supportedCDMs;
+                });
             }
 
             this.currentSourceEncrypted = false;
@@ -808,6 +1943,7 @@
             this.activeCDM = '';
             this.boundTechElement = null;
             setTimeout(() => this.bindTechEvents(), 0);
+
             if (source) {
               this.dataMessages = '';
               this.pendingMessageCount = 0;
@@ -833,9 +1969,7 @@
           if (typeof player.qualityLevels === 'function') {
             const qualityLevels = player.qualityLevels();
 
-            qualityLevels?.on('change', () => {
-              this.updateQualityFromLevels();
-            });
+            qualityLevels?.on('change', () => this.updateQualityFromLevels());
           }
 
           if (!textTracksBound) {
@@ -844,9 +1978,8 @@
 
               track.on('cuechange', () => {
                 const cue = track.activeCues[0];
-                if (!cue) {
-                  return;
-                }
+
+                if (!cue) return;
                 const label = track.label ? '[' + track.label + ']' : '[' + cue.startTime.toFixed(3) + ']';
 
                 this.appendMessage(label + ' ' + cue.text);
@@ -856,25 +1989,46 @@
           }
         },
         startPlayback(selectedSource) {
-          console.log('StartPlayback', { selectedSource, currentSource: this.source, previouslySelectedSource: this.selectedSource });
+          console.log('StartPlayback', { selectedSource, currentSource: this.source });
           const nextSource = selectedSource || this.selectedSource || void 0;
 
-          if (nextSource) {
-            this.selectedSource = nextSource;
-          }
+          if (nextSource) this.selectedSource = nextSource;
+
+          // The share URL captures whatever the user just clicked Play with — host, stream,
+          // token, and all other settings the URL knows how to round-trip.
+          this.updateURL();
 
           this.syncPlaybackState(PlayState.STARTING);
 
-          this.playerOptions = this.buildPlayerOptions(nextSource);
-          const ceeblueOptions = this.playerOptions.plugins.ceeblue;
+          const ceeblueOptions = this.buildCeeblueOptions(nextSource);
 
-          if (player) {
+          if (player.usingPlugin('ceeblue')) {
             player.ceeblue().replaceOptions(ceeblueOptions);
           } else {
-            player = videojs(this.$refs.videoPlayer, this.playerOptions);
-            this.bindPlayerEvents();
+            player.ceeblue(ceeblueOptions);
           }
         },
+        stopPlayback() {
+          console.log('StopPlayback');
+          if (player && player.usingPlugin('ceeblue')) player.ceeblue().stop();
+        },
+        play() {
+          if (this.playState === PlayState.STOPPED) {
+            this.startPlayback();
+          } else {
+            this.stopPlayback();
+          }
+        },
+        goLive() {
+          const wrtsSource = this.getCurrentWrtsSource();
+          const wrtsPlayer = wrtsSource?.wrtsPlayer;
+
+          if (wrtsPlayer && typeof wrtsPlayer.goLive === 'function') {
+            wrtsPlayer.goLive();
+          }
+        },
+
+        // ── WRTS real-time settings ──
         applyWrtsNetworkProfile() {
           const profile = this.wrtsNetworkProfiles.find((entry) => entry.value === this.wrtsNetworkProfile);
 
@@ -887,66 +2041,39 @@
           this.wrtsBufferLimitHigh = profile.bufferLimitHigh.toFixed();
           this.applyWrtsRuntimeSettings();
         },
+        onBufferChanged() {
+          // Editing the values manually slips into the manual profile so the description matches.
+          this.wrtsNetworkProfile = '-manual-';
+          this.applyWrtsRuntimeSettings();
+        },
         applyWrtsRuntimeSettings() {
           const wrtsSource = this.getCurrentWrtsSource();
 
-          if (!wrtsSource) {
-            return;
-          }
+          if (wrtsSource) {
+            const bufferLimitLow = Number.parseInt(this.wrtsBufferLimitLow, 10);
+            const bufferLimitHigh = Number.parseInt(this.wrtsBufferLimitHigh, 10);
 
-          const bufferLimitLow = Number.parseInt(this.wrtsBufferLimitLow, 10);
-          const bufferLimitHigh = Number.parseInt(this.wrtsBufferLimitHigh, 10);
-
-          if (!Number.isNaN(bufferLimitLow)) {
-            wrtsSource.bufferLimitLow = bufferLimitLow;
+            if (!Number.isNaN(bufferLimitLow)) wrtsSource.bufferLimitLow = bufferLimitLow;
+            if (!Number.isNaN(bufferLimitHigh)) wrtsSource.bufferLimitHigh = bufferLimitHigh;
+            wrtsSource.reliable = !this.wrtsAdaptiveFrameSkipping;
           }
-
-          if (!Number.isNaN(bufferLimitHigh)) {
-            wrtsSource.bufferLimitHigh = bufferLimitHigh;
-          }
-
-          wrtsSource.reliable = !this.wrtsAdaptiveFrameSkipping;
-        },
-        stopPlayback() {
-          console.log('StopPlayback');
-          if (!player) {
-            return;
-          }
-
-          player.ceeblue().stop();
-        },
-        play() {
-          if(this.playState === PlayState.STOPPED) {
-            this.startPlayback();
-          } else {
-            this.stopPlayback();
-          }
+          this.updateURL();
         },
 
+        // ── Play button presentation ──
         playButtonCaption() {
-          if (this.isStopped())
-            return 'Play';
-          if (this.isStarting())
-            return 'Starting... ';
-          if (this.isPlaying())
-            return 'Stop';
+          if (this.isStopped()) return 'Play';
+          if (this.isStarting()) return 'Starting…';
+          return 'Stop';
         },
-        isPlaying() {
-          return this.playState === PlayState.PLAYING;
+        playButtonIcon() {
+          if (this.isStopped()) return 'fa-play';
+          if (this.isStarting()) return 'fa-circle-notch';
+          return 'fa-stop';
         },
-        isStarting() {
-          return this.playState === PlayState.STARTING;
-        },
-        isStopped() {
-          return this.playState === PlayState.STOPPED;
-        }
-      },
-      watch: {
-        bottomPanelTab(nextTab) {
-          if (nextTab === 'messages') {
-            this.pendingMessageCount = 0;
-          }
-        }
+        isPlaying() { return this.playState === PlayState.PLAYING; },
+        isStarting() { return this.playState === PlayState.STARTING; },
+        isStopped() { return this.playState === PlayState.STOPPED; }
       }
     }).mount('#main');
     </script>

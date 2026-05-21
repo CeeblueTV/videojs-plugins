@@ -508,6 +508,8 @@ export class CeeblueVideoJSPlugin extends Plugin {
     this._completedLoopCount = 0;
     this._reset();
 
+    this._player.hasStarted(false);
+
     const eme = this._player.eme;
 
     // contrib-eme keeps runtime state on the player after initialization, so we
