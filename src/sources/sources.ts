@@ -1,4 +1,5 @@
 import type { CMCD, CMCDMode } from '@ceeblue/wrts-client';
+import { normalizeKeySystemsForEME, DRM_DEFAULT_AUDIO_CONTENT_TYPE, DRM_DEFAULT_VIDEO_CONTENT_TYPE } from './drm';
 
 // This fixes a linting error
 type BrowserMediaKeySystemConfiguration = globalThis.MediaKeySystemConfiguration;
@@ -268,7 +269,31 @@ export function expandSourcesToVideoJSSources(option: CeeblueSourcesOptions) {
   return getOptionSources(option)
     .map(source => mergeSourceWithGlobalSettings(source, globalSettings))
     .map(source => expandSourceToURLSource(source, globalKeySystems))
-    .flat();
+    .flat()
+    .map(normalizeHTTPSourceKeySystems);
+}
+
+/**
+ * Reshape the key systems of HLS/DASH sources into a form videojs-contrib-eme can
+ * consume. WRTS enriches its own key systems from stream metadata at play time, and
+ * WebRTC carries none, so both are left untouched here.
+ */
+function normalizeHTTPSourceKeySystems(source: VideojsSourceObject): VideojsSourceObject {
+  if (source.sourceType !== 'hls' && source.sourceType !== 'llhls' && source.sourceType !== 'dash') {
+    return source;
+  }
+
+  if (!source.keySystems) {
+    return source;
+  }
+
+  return {
+    ...source,
+    keySystems: normalizeKeySystemsForEME(source.keySystems, {
+      audioContentTypes: [DRM_DEFAULT_AUDIO_CONTENT_TYPE],
+      videoContentTypes: [DRM_DEFAULT_VIDEO_CONTENT_TYPE]
+    })
+  };
 }
 
 type CeeblueDeterminedSourceType = {

@@ -2,6 +2,7 @@ import videojs from 'video.js';
 import type Player from 'video.js/dist/types/player';
 import type { Metadata } from '@ceeblue/wrts-client';
 import type { CeeblueDRMKeySystems } from './sources';
+import { isFairPlayKeySystem, normalizeContentTypeValues, normalizeRobustnessValues, toCapabilities } from './drm';
 
 export type VideojsEMEOptions = {
   keySystems?: CeeblueDRMKeySystems;
@@ -24,7 +25,6 @@ export type PlayerWithEME = Player & {
 type BrowserMediaKeysRequirement = globalThis.MediaKeysRequirement;
 type BrowserMediaKeySessionType = globalThis.MediaKeySessionType;
 type BrowserMediaKeySystemConfiguration = globalThis.MediaKeySystemConfiguration;
-type BrowserMediaKeySystemMediaCapability = globalThis.MediaKeySystemMediaCapability;
 
 type DRMContentTypes = {
   audioContentTypes: string[];
@@ -41,40 +41,6 @@ const DRM_SYSTEM_IDS = {
   'com.microsoft.playready': '9a04f07998404286ab92e65be0885f95',
   'com.widevine.alpha': 'edef8ba979d64acea3c827dcd51d21ed'
 } as const;
-
-function isFairPlayKeySystem(keySystem: string) {
-  return keySystem.startsWith('com.apple.fps');
-}
-
-function normalizeStringValues(value: string | string[] | undefined) {
-  if (value === undefined) {
-    return [];
-  }
-
-  return Array.isArray(value) ? value.filter(Boolean) : [value];
-}
-
-function toCapabilities(
-  contentTypes: string[],
-  robustnesses: string[]
-): BrowserMediaKeySystemMediaCapability[] {
-  if (!contentTypes.length) {
-    return [];
-  }
-
-  const normalizedRobustnesses = robustnesses.length ? robustnesses : [''];
-
-  return contentTypes.flatMap(contentType => normalizedRobustnesses.map(robustness => {
-    if (!robustness) {
-      return { contentType };
-    }
-
-    return {
-      contentType,
-      robustness
-    };
-  }));
-}
 
 function getEncryptedContentTypes(metadata: Metadata): DRMContentTypes {
   const audioContentTypes = new Set<string>();
@@ -126,10 +92,10 @@ function createMediaKeySystemConfiguration(
 ) {
   const audioContentTypes = metadataSettings.audioContentTypes.length
     ? metadataSettings.audioContentTypes
-    : normalizeStringValues(keySystemConfig.audioContentType as string | string[] | undefined);
+    : normalizeContentTypeValues(keySystemConfig.audioContentType as string | string[] | undefined);
   const videoContentTypes = metadataSettings.videoContentTypes.length
     ? metadataSettings.videoContentTypes
-    : normalizeStringValues(keySystemConfig.videoContentType as string | string[] | undefined);
+    : normalizeContentTypeValues(keySystemConfig.videoContentType as string | string[] | undefined);
 
   if (!audioContentTypes.length && !videoContentTypes.length) {
     return undefined;
@@ -155,11 +121,11 @@ function createMediaKeySystemConfiguration(
 
   const audioCapabilities = toCapabilities(
     audioContentTypes,
-    normalizeStringValues(keySystemConfig.audioRobustness as string | string[] | undefined)
+    normalizeRobustnessValues(keySystemConfig.audioRobustness as string | string[] | undefined)
   );
   const videoCapabilities = toCapabilities(
     videoContentTypes,
-    normalizeStringValues(keySystemConfig.videoRobustness as string | string[] | undefined)
+    normalizeRobustnessValues(keySystemConfig.videoRobustness as string | string[] | undefined)
   );
 
   if (audioCapabilities.length) {

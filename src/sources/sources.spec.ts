@@ -163,6 +163,40 @@ describe('sources', () => {
       });
     });
 
+    it('should normalize robustness on Cloud DASH sources into EME supportedConfigurations', () => {
+      const result = expandSourcesToVideoJSSources({
+        endPoint: 'example.com',
+        streamName: 'test-stream',
+        protocols: ['dash'],
+        keySystems: {
+          'com.widevine.alpha': {
+            url: 'https://widevine.example.com',
+            audioRobustness: ['SW_SECURE_CRYPTO'],
+            videoRobustness: ['HW_SECURE_DECODE', 'SW_SECURE_DECODE']
+          }
+        }
+      });
+
+      expect(result[0]).toMatchObject({
+        sourceType: 'dash',
+        keySystems: {
+          'com.widevine.alpha': {
+            url: 'https://widevine.example.com',
+            supportedConfigurations: [{
+              audioCapabilities: [
+                { contentType: 'audio/mp4;codecs="mp4a.40.2"', robustness: 'SW_SECURE_CRYPTO' }
+              ],
+              videoCapabilities: [
+                { contentType: 'video/mp4;codecs="avc1.42E01E"', robustness: 'HW_SECURE_DECODE' },
+                { contentType: 'video/mp4;codecs="avc1.42E01E"', robustness: 'SW_SECURE_DECODE' }
+              ]
+            }]
+          }
+        }
+      });
+      expect(result[0]?.keySystems?.['com.widevine.alpha']).not.toHaveProperty('audioRobustness');
+    });
+
     it('should apply global keySystems to DRM-capable Cloud protocols', () => {
       const result = expandSourcesToVideoJSSources({
         endPoint: 'example.com',
