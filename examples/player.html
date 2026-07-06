@@ -27,7 +27,8 @@
 
     <script>
       (function () {
-        var stored = localStorage.getItem('vjs-ceeblue-theme') || 'light';
+        var stored = localStorage.getItem('vjs-ceeblue-theme')
+          || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         document.documentElement.dataset.theme = stored === 'dark' ? 'dark' : 'light';
       })();
     </script>
@@ -320,18 +321,6 @@
       }
       .btn-primary:hover:not(:disabled) { background: var(--accent-b); border-color: var(--accent-b); }
 
-      .btn-danger {
-        background: var(--err); border-color: var(--err);
-        color: #fff; font-weight: 600;
-      }
-      .btn-danger:hover:not(:disabled) { background: #a83224; border-color: #a83224; }
-
-      .btn-success {
-        background: var(--accent); border-color: var(--accent);
-        color: #fff; font-weight: 600;
-      }
-      .btn-success:hover:not(:disabled) { background: var(--accent-b); border-color: var(--accent-b); }
-
       .btn-cyan {
         background: var(--accent-d); border-color: rgba(120,181,191,.4);
         color: var(--accent-b);
@@ -417,8 +406,8 @@
         display: flex; flex-wrap: wrap; gap: 8px;
         align-items: stretch;
       }
-      .ctrl-row .play-btn { flex: 1 1 140px; padding: 9px 18px; font-size: 14px; }
-      .ctrl-row .btn, .ctrl-row .tog { min-height: 36px; }
+      .ctrl-row .btn, .ctrl-row .tog, .ctrl-row .sel { min-height: 36px; }
+      .ctrl-row .proto-select { flex: 0 0 auto; width: auto; min-width: 120px; }
       .ctrl-row .ctrl-pill {
         display: inline-flex; align-items: center;
         min-height: 36px; padding: 0 14px;
@@ -547,7 +536,6 @@
         transition: opacity var(--t);
       }
       .stats-actions img:hover { opacity: .9; }
-      html[data-theme="dark"] .stats-actions img { filter: invert(1) brightness(1.05); }
 
       /* ── Messages ── */
       .msg-box {
@@ -761,13 +749,17 @@
 
       <!-- Controls row -->
       <div class="ctrl-row gap-panel">
-        <button class="btn play-btn" type="button"
-          :class="{ 'btn-danger': isPlaying(), 'btn-success': isStopped(), 'btn-cyan': isStarting() }"
-          v-on:click="play">
+        <button class="btn btn-cyan play-btn" type="button" v-on:click="play">
           <i class="fas" :class="playButtonIcon()"></i>
           <span>{{ playButtonCaption() }}</span>
           <i class="fas fa-spinner fa-pulse" v-if="isStarting()"></i>
         </button>
+
+        <select class="sel proto-select" v-model="selectedSource" @change="onProtocolSelect"
+          title="Protocol to play (Auto uses the configured fallback priority)">
+          <option value="">Auto</option>
+          <option v-for="proto in enabledProtocols" :key="proto.id" :value="proto.id">{{ proto.label }}</option>
+        </select>
 
         <button class="btn" title="Open protocol & DRM settings"
           v-on:click="openSettings()">
@@ -1171,7 +1163,9 @@
     }
 
     // Widevine / PlayReady accept either a string license URL or a config object.
-    // Wrap the URL in an object only when audio/video robustness is configured.
+    // Robustness is expressed as intent (a license URL plus audio/video robustness
+    // levels); the ceeblue plugin normalizes it into the EME supportedConfigurations
+    // shape videojs-contrib-eme expects before handing it to the browser.
     function buildKeySystemEntry(license, audioRob, videoRob) {
       if (!license) return undefined;
       const audio = parseRobustness(audioRob);
@@ -1244,8 +1238,9 @@
           retryCount: 0,
           auto: true,
 
-          // Theme
-          theme: localStorage.getItem('vjs-ceeblue-theme') || 'light',
+          // Theme (fall back to the OS preference when nothing is stored)
+          theme: localStorage.getItem('vjs-ceeblue-theme')
+            || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'),
 
           // Current playback metadata
           source: '',
@@ -1345,6 +1340,9 @@
           const profile = this.wrtsNetworkProfiles.find((entry) => entry.value === this.wrtsNetworkProfile);
 
           return profile?.description || '';
+        },
+        enabledProtocols() {
+          return this.protocolsConfig.filter((proto) => proto.enabled);
         }
       },
       created() {
@@ -1898,6 +1896,9 @@
             this.currentSourceKeySystems = null;
             this.activeCDM = '';
             this.boundTechElement = null;
+            // Forget the protocol that was last playing so the next start uses the
+            // configured fallback priority instead of resuming the last-tested one.
+            this.selectedSource = '';
           }
         },
         updateQualityFromLevels() {
@@ -2017,6 +2018,23 @@
             this.startPlayback();
           } else {
             this.stopPlayback();
+          }
+        },
+        onProtocolSelect() {
+          // Persist the choice in the share URL, then act on it.
+          this.updateURL();
+
+          // While stopped the selection is just the preferred start protocol (it is
+          // moved to the front in getEnabledProtocols). While playing, mirror the
+          // in-player source menu: force the chosen protocol, or re-enable auto
+          // fallback for "Auto".
+          if (this.isStopped() || !player || !player.usingPlugin('ceeblue')) {
+            return;
+          }
+          if (this.selectedSource) {
+            player.ceeblue().setSource({ protocol: this.selectedSource });
+          } else {
+            player.ceeblue().setAutoFallback(true);
           }
         },
         goLive() {
