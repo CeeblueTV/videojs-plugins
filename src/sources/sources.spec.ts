@@ -120,15 +120,15 @@ describe('sources', () => {
 
     it('should pass DRM keySystems through HTTP URL sources', () => {
       const result = expandSourcesToVideoJSSources({
-        url: 'https://example.com/stream.mpd',
-        type: 'dash',
+        url: 'https://example.com/stream.m3u8',
+        type: 'hls',
         keySystems
       });
 
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
-        src: 'https://example.com/stream.mpd',
-        sourceType: 'dash',
+        src: 'https://example.com/stream.m3u8',
+        sourceType: 'hls',
         keySystems
       });
     });
@@ -197,6 +197,44 @@ describe('sources', () => {
       expect(result[0]?.keySystems?.['com.widevine.alpha']).not.toHaveProperty('audioRobustness');
     });
 
+    it('should drop FairPlay key systems from DASH sources (FairPlay is HLS-only)', () => {
+      const [hls, dash] = expandSourcesToVideoJSSources({
+        endPoint: 'example.com',
+        streamName: 'test-stream',
+        protocols: ['hls', 'dash'],
+        keySystems: {
+          'com.widevine.alpha': 'https://widevine.example.com',
+          'com.apple.fps': {
+            certificateUri: 'https://fps.example.com/cert',
+            licenseUri: 'https://fps.example.com/license'
+          }
+        }
+      });
+
+      // HLS keeps FairPlay.
+      expect(hls?.keySystems).toHaveProperty('com.apple.fps');
+      // DASH drops it but keeps Widevine.
+      expect(dash?.keySystems).toHaveProperty('com.widevine.alpha');
+      expect(dash?.keySystems).not.toHaveProperty('com.apple.fps');
+    });
+
+    it('should drop keySystems entirely from a DASH source configured with only FairPlay', () => {
+      const result = expandSourcesToVideoJSSources({
+        endPoint: 'example.com',
+        streamName: 'test-stream',
+        protocols: ['dash'],
+        keySystems: {
+          'com.apple.fps': {
+            certificateUri: 'https://fps.example.com/cert',
+            licenseUri: 'https://fps.example.com/license'
+          }
+        }
+      });
+
+      expect(result[0]).toMatchObject({ sourceType: 'dash' });
+      expect(result[0]).not.toHaveProperty('keySystems');
+    });
+
     it('should apply global keySystems to DRM-capable Cloud protocols', () => {
       const result = expandSourcesToVideoJSSources({
         endPoint: 'example.com',
@@ -218,10 +256,12 @@ describe('sources', () => {
         sourceType: 'hls',
         keySystems
       });
+      // DASH drops the HLS-only FairPlay entry, keeping Widevine.
       expect(result[3]).toMatchObject({
         sourceType: 'dash',
-        keySystems
+        keySystems: { 'com.widevine.alpha': 'https://widevine.example.com' }
       });
+      expect(result[3]?.keySystems).not.toHaveProperty('com.apple.fps');
     });
 
     it('should pass DRM keySystems through WRTS URL sources', () => {
@@ -253,8 +293,9 @@ describe('sources', () => {
 
       expect(dashResult[0]).toMatchObject({
         sourceType: 'dash',
-        keySystems
+        keySystems: { 'com.widevine.alpha': 'https://widevine.example.com' }
       });
+      expect(dashResult[0]?.keySystems).not.toHaveProperty('com.apple.fps');
       expect(wrtsResult[0]).toMatchObject({
         sourceType: 'wrts',
         keySystems
@@ -391,10 +432,12 @@ describe('sources', () => {
           }
         }
       });
+      // Global keySystems still apply to DASH, minus the HLS-only FairPlay entry.
       expect(result[2]).toMatchObject({
         sourceType: 'dash',
-        keySystems
+        keySystems: { 'com.widevine.alpha': 'https://widevine.example.com' }
       });
+      expect(result[2]?.keySystems).not.toHaveProperty('com.apple.fps');
     });
   });
 });

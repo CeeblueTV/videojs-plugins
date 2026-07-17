@@ -1,5 +1,5 @@
 import type { CMCD, CMCDMode } from '@ceeblue/wrts-client';
-import { normalizeKeySystemsForEME, DRM_DEFAULT_AUDIO_CONTENT_TYPE, DRM_DEFAULT_VIDEO_CONTENT_TYPE } from './drm';
+import { normalizeKeySystemsForEME, isFairPlayKeySystem, DRM_DEFAULT_AUDIO_CONTENT_TYPE, DRM_DEFAULT_VIDEO_CONTENT_TYPE } from './drm';
 
 // This fixes a linting error
 type BrowserMediaKeySystemConfiguration = globalThis.MediaKeySystemConfiguration;
@@ -287,9 +287,29 @@ function normalizeHTTPSourceKeySystems(source: VideojsSourceObject): VideojsSour
     return source;
   }
 
+  let keySystems = source.keySystems;
+
+  // FairPlay Streaming is HLS-only: a `com.apple.fps*` entry on a DASH source is invalid.
+  // Left in, videojs-contrib-eme picks FairPlay whenever it is the only CDM the browser
+  // supports (e.g. Safari, where Widevine/PlayReady are absent) and then crashes running
+  // the FairPlay flow against cenc content. Drop it so DASH fails cleanly and falls back.
+  if (source.sourceType === 'dash') {
+    const entries = Object.entries(keySystems).filter(([keySystem]) => !isFairPlayKeySystem(keySystem));
+
+    keySystems = Object.fromEntries(entries);
+
+    if (!Object.keys(keySystems).length) {
+      const withoutKeySystems = { ...source };
+
+      delete withoutKeySystems.keySystems;
+
+      return withoutKeySystems;
+    }
+  }
+
   return {
     ...source,
-    keySystems: normalizeKeySystemsForEME(source.keySystems, {
+    keySystems: normalizeKeySystemsForEME(keySystems, {
       audioContentTypes: [DRM_DEFAULT_AUDIO_CONTENT_TYPE],
       videoContentTypes: [DRM_DEFAULT_VIDEO_CONTENT_TYPE]
     })
